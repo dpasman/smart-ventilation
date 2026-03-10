@@ -2,7 +2,7 @@
   "domain": "smart_ventilation",
   "name": "Smart Ventilation",
   "version": "0.0.1",
-  "documentation": "https://github.com/dpasman/smart_ventilation",
+  "documentation": "https://github.com/dpasman/smart-ventilation",
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@dpasman"]
