@@ -1,0 +1,10 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Smart Ventilation",
+        "description": "Select required indoor sensors and optional sensors for better accuracy."
+      }
+    }
+  }
+}
