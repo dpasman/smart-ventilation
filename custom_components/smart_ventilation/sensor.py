@@ -4,11 +4,14 @@ from .const import DOMAIN, CONF_INDOOR_TEMP, CONF_INDOOR_HUM, CONF_OUTDOOR_TEMP,
 class SmartVentilationSensor(SensorEntity):
     """Sensor for Smart Ventilation per room."""
 
-    def __init__(self, hass, config_entry, room_name):
+    def __init__(self, hass, config_entry, room_name, device_id):
         self._hass = hass
         self._config = config_entry.data
         self._room_name = room_name
         self._attr_name = f"Smart Ventilation Score {room_name}"
+        self._attr_unique_id = f"{config_entry.entry_id}"
+        self._attr_device_id = device_id
+        self._attr_entity_id = f"sensor.smart_ventilation_{room_name.lower().replace(' ', '_')}"
         self._attr_native_unit_of_measurement = "%"
         self._state = None
         self._attr_extra_state_attributes = {}
