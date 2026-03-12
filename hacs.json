@@ -1,7 +1,5 @@
 {
   "name": "Smart Ventilation",
-  "content_in_root": false,
   "country": ["NL", "BE"],
-  "homeassistant": "2026.3.1",
-  "persistent_directory": "smart_ventilation"
+  "homeassistant": "2026.3.1"
 }
