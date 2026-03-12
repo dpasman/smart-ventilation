@@ -25,7 +25,10 @@ class SmartVentilationSensor(SensorEntity):
         """Calculate ventilation score for the room."""
         def get_float(sensor_id):
             try:
-                return float(self._hass.states.get(sensor_id).state)
+                state = self._hass.states.get(sensor_id)
+                if state is None:
+                    return None
+                return float(state.state)
             except:
                 return None
 
