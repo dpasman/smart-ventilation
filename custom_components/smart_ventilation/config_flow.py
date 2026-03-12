@@ -12,7 +12,8 @@ from .const import (
     CONF_PM25_IN,
     CONF_PM25_OUT,
     CONF_WIND,
-    CONF_HEAT_INDEX,
+    CONF_HEAT_INDEX_IN,
+    CONF_HEAT_INDEX_OUT,
 )
 
 class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -51,7 +52,10 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_WIND): selector.EntitySelector(
                         selector.EntitySelectorConfig(device_class="wind_speed")
                     ),
-                    vol.Optional(CONF_HEAT_INDEX): selector.EntitySelector(
+                    vol.Optional(CONF_HEAT_INDEX_IN): selector.EntitySelector(
+                        selector.EntitySelectorConfig(device_class="temperature")
+                    ),
+                    vol.Optional(CONF_HEAT_INDEX_OUT): selector.EntitySelector(
                         selector.EntitySelectorConfig(device_class="temperature")
                     ),
                 })

@@ -1,5 +1,5 @@
 from homeassistant.components.sensor import SensorEntity
-from .const import DOMAIN, CONF_INDOOR_TEMP, CONF_INDOOR_HUM, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_HUM, CONF_CO2, CONF_PM25_IN, CONF_PM25_OUT, CONF_WIND, CONF_HEAT_INDEX
+from .const import DOMAIN, CONF_INDOOR_TEMP, CONF_INDOOR_HUM, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_HUM, CONF_CO2, CONF_PM25_IN, CONF_PM25_OUT, CONF_WIND, CONF_HEAT_INDEX_IN, CONF_HEAT_INDEX_OUT
 
 class SmartVentilationSensor(SensorEntity):
     """Sensor for Smart Ventilation per room."""
@@ -47,7 +47,8 @@ class SmartVentilationSensor(SensorEntity):
         pm25_in = get_float(self._config.get(CONF_PM25_IN))
         pm25_out = get_float(self._config.get(CONF_PM25_OUT))
         wind = get_float(self._config.get(CONF_WIND))
-        heat_index = get_float(self._config.get(CONF_HEAT_INDEX))
+        heat_index_in = get_float(self._config.get(CONF_HEAT_INDEX_IN))
+        heat_index_out = get_float(self._config.get(CONF_HEAT_INDEX_OUT))
 
         score = 50
         reasons = []
@@ -87,9 +88,12 @@ class SmartVentilationSensor(SensorEntity):
                 reasons.append("Outdoor PM2.5 high - ventilate less")
 
         # Heat index
-        if heat_index and heat_index > 35:
+        if heat_index_in and heat_index_in > 35:
             score += 10
-            reasons.append(f"High indoor heat index: {heat_index}")
+            reasons.append(f"High indoor heat index: {heat_index_in}")
+        elif heat_index_out and heat_index_out > 35:
+            score += 5
+            reasons.append(f"High outdoor heat index: {heat_index_out}")
 
         # Wind
         if wind and 2 <= wind <= 8:
