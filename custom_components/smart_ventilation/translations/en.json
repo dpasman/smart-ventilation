@@ -3,7 +3,33 @@
     "step": {
       "user": {
         "title": "Configure Smart Ventilation",
-        "description": "Select required indoor sensors and optional sensors for better accuracy."
+        "description": "Select required indoor sensors and optional sensors for better accuracy.",
+        "data": {
+          "room_name": "Room / Area",
+          "indoor_temperature": "Indoor Temperature",
+          "indoor_humidity": "Indoor Humidity",
+          "outdoor_temperature": "Outdoor Temperature",
+          "outdoor_humidity": "Outdoor Humidity",
+          "co2": "CO2 Sensor",
+          "pm25_indoor": "Indoor PM2.5",
+          "pm25_outdoor": "Outdoor PM2.5",
+          "wind": "Wind Speed",
+          "heat_index_indoor": "Indoor Heat Index",
+          "heat_index_outdoor": "Outdoor Heat Index"
+        },
+        "data_description": {
+          "room_name": "Select the area/room for ventilation monitoring",
+          "indoor_temperature": "Select an indoor temperature sensor",
+          "indoor_humidity": "Select an indoor humidity sensor",
+          "outdoor_temperature": "Select an outdoor temperature sensor (optional)",
+          "outdoor_humidity": "Select an outdoor humidity sensor (optional)",
+          "co2": "Select a CO2 sensor (optional)",
+          "pm25_indoor": "Select an indoor PM2.5 sensor (optional)",
+          "pm25_outdoor": "Select an outdoor PM2.5 sensor (optional)",
+          "wind": "Select a wind speed sensor (optional)",
+          "heat_index_indoor": "Select an indoor heat index sensor (optional)",
+          "heat_index_outdoor": "Select an outdoor heat index sensor (optional)"
+        }
       }
     }
   }
