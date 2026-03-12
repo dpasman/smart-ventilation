@@ -28,40 +28,31 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({
                     vol.Required("room_name"): str,
                     vol.Required(CONF_INDOOR_TEMP): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "temperature",
+                        "device_class": "temperature",
                     }),
                     vol.Required(CONF_INDOOR_HUM): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "humidity",
+                        "device_class": "humidity",
                     }),
                     vol.Optional(CONF_OUTDOOR_TEMP): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "temperature",
+                        "device_class": "temperature",
                     }),
                     vol.Optional(CONF_OUTDOOR_HUM): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "humidity",
+                        "device_class": "humidity",
                     }),
                     vol.Optional(CONF_CO2): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "carbon_dioxide",
+                        "device_class": "carbon_dioxide",
                     }),
                     vol.Optional(CONF_PM25_IN): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "pm25",
+                        "device_class": "pm25",
                     }),
                     vol.Optional(CONF_PM25_OUT): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "pm25",
+                        "device_class": "pm25",
                     }),
                     vol.Optional(CONF_WIND): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "wind_speed",
+                        "device_class": "wind_speed",
                     }),
                     vol.Optional(CONF_HEAT_INDEX): selector.entity_selector({
-                        selector.EntitySelectorFilter.INTEGRATION: "sensor",
-                        selector.EntitySelectorFilter.DEVICE_CLASS: "temperature",
+                        "device_class": "temperature",
                     }),
                 })
             )
