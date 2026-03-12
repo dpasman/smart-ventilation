@@ -1,5 +1,16 @@
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN, CONF_INDOOR_TEMP, CONF_INDOOR_HUM, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_HUM, CONF_CO2, CONF_PM25_IN, CONF_PM25_OUT, CONF_WIND, CONF_HEAT_INDEX_IN, CONF_HEAT_INDEX_OUT
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    """Set up sensor platform."""
+    data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+    device = data.get("device")
+    room_name = data.get("room_name", "Unknown")
+    
+    sensor = SmartVentilationSensor(hass, entry, room_name, device.id if device else None)
+    async_add_entities([sensor])
 
 class SmartVentilationSensor(SensorEntity):
     """Sensor for Smart Ventilation per room."""

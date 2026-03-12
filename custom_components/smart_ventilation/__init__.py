@@ -3,10 +3,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
-from .sensor import SmartVentilationSensor
-from homeassistant.const import Platform
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,9 +22,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         name=f"Smart Ventilation - {room_name}",
     )
     
-    sensor = SmartVentilationSensor(hass, entry, room_name, device.id)
-    await hass.async_add_entities([sensor])
+    hass.data.setdefault(entry.domain, {})[entry.entry_id] = {
+        "device": device,
+        "room_name": room_name,
+    }
     
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     return True
 
 async def async_unload_entry(hass, entry):
