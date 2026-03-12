@@ -26,7 +26,7 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema({
-                    vol.Required("room_name"): str,
+                    vol.Required("room_name"): selector.AreaSelector(),
                     vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(
                         selector.EntitySelectorConfig(device_class="temperature")
                     ),
