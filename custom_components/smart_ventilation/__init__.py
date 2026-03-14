@@ -5,7 +5,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_ABS_HUMIDITY
+from .const import DOMAIN, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_HUMIDITY
 from .coordinator import SmartVentilationCoordinator
 
 PLATFORMS = ["sensor", "binary_sensor"]
