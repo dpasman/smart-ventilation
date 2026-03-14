@@ -40,13 +40,13 @@ class SmartVentilationCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.entry = entry
-        self.data: dict[str, dict[str, Any]] = {}
         super().__init__(
             hass,
             name=DOMAIN,
             logger=logging.getLogger(__name__),
             update_interval=timedelta(minutes=1),
         )
+        self.data = {}
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Update data for all areas."""

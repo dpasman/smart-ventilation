@@ -9,16 +9,10 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
-    CONF_AREA_NAME,
-    CONF_INDOOR_ABS_HUMIDITY,
     CONF_INDOOR_CO2,
-    CONF_INDOOR_DEW_POINT,
-    CONF_INDOOR_HEAT_INDEX,
     CONF_INDOOR_HUMIDITY,
     CONF_INDOOR_PM25,
     CONF_INDOOR_TEMP,
-    CONF_OUTDOOR_ABS_HUMIDITY,
-    CONF_OUTDOOR_DEW_POINT,
     CONF_OUTDOOR_HUMIDITY,
     CONF_OUTDOOR_TEMP,
     CONF_OUTDOOR_TEMP_MAX_24H,
@@ -26,6 +20,12 @@ from .const import (
     CONF_WIND_MAX,
     DOMAIN,
 )
+
+CONF_AREA = "area"
+CONF_INDOOR_TEMP = "indoor_temperature"
+CONF_INDOOR_HUMIDITY = "indoor_humidity"
+CONF_OUTDOOR_TEMP = "outdoor_temperature"
+CONF_OUTDOOR_HUMIDITY = "outdoor_humidity"
 
 
 class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -65,13 +65,17 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+            description_placeholders={
+                "outdoor_temp": "Outdoor Temperature",
+                "outdoor_humidity": "Outdoor Humidity",
+            },
         )
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
         """Get the options flow."""
-        return OptionsFlowHandler()
+        return OptionsFlowHandler(config_entry)
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
@@ -114,8 +118,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_add_area(self, user_input: dict | None = None) -> FlowResult:
         """Handle adding a new area."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             areas = self.config_entry.data.get("areas", [])
             areas.append(user_input)
@@ -126,11 +128,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
+        areas = self.hass.config_entries.async_get_areas()
+        area_options = [
+            selector.SelectOptionDict(value=area["area_id"], label=area["name"])
+            for area in areas
+        ]
+
         return self.async_show_form(
             step_id="add_area",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_AREA_NAME): str,
+                    vol.Required(CONF_AREA): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=area_options, mode=selector.SelectSelectorMode.DROPDOWN)
+                    ),
                     vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(
                         selector.EntitySelectorConfig(),
                     ),
@@ -145,7 +155,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 }
             ),
-            errors=errors,
+            description_placeholders={
+                "area": "Select Home Assistant Area",
+                "indoor_temp": "Indoor Temperature Sensor",
+                "indoor_humidity": "Indoor Humidity Sensor",
+            },
         )
 
     async def async_step_remove_area(self, user_input: dict | None = None) -> FlowResult:
@@ -153,8 +167,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         areas = self.config_entry.data.get("areas", [])
 
         if user_input is not None:
-            area_name = user_input.get("area_to_remove")
-            areas = [a for a in areas if a[CONF_AREA_NAME] != area_name]
+            area_id = user_input.get("area_to_remove")
+            areas = [a for a in areas if a.get(CONF_AREA) != area_id]
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 data={**self.config_entry.data, "areas": areas},
@@ -162,14 +176,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
-        options = []
-        for area in areas:
-            options.append(
-                selector.SelectOptionDict(
-                    value=area[CONF_AREA_NAME],
-                    label=area[CONF_AREA_NAME],
-                )
-            )
+        options = [
+            selector.SelectOptionDict(value=a.get(CONF_AREA, a.get("name", "")), label=a.get("name", "Unknown"))
+            for a in areas
+        ]
 
         return self.async_show_form(
             step_id="remove_area",
@@ -181,3 +191,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 }
             ),
         )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow."""
+        return OptionsFlowHandler()
+
+
+# END OF FILE
