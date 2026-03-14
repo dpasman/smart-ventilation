@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigEntry, OptionsFlow
+from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
@@ -28,11 +28,10 @@ from .const import (
 )
 
 
-class SmartVentilationConfigFlow(ConfigFlow):
+class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Ventilation."""
 
     VERSION = 1
-    domain = DOMAIN
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step."""
@@ -76,15 +75,15 @@ class SmartVentilationConfigFlow(ConfigFlow):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
         """Get the options flow."""
         return OptionsFlowHandler(config_entry)
 
 
-class OptionsFlowHandler(OptionsFlow):
+class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for Smart Ventilation."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
 
