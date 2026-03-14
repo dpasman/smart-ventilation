@@ -35,8 +35,6 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             return self.async_create_entry(
                 title="Smart Ventilation",
@@ -47,30 +45,10 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_OUTDOOR_DEW_POINT): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_OUTDOOR_TEMP_MAX_24H): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_WIND_AVG): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_WIND_MAX): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
+                    vol.Required(CONF_OUTDOOR_TEMP): str,
+                    vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): str,
                 }
             ),
-            errors=errors,
         )
 
     @staticmethod
@@ -124,8 +102,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_add_area(self, user_input: dict | None = None) -> FlowResult:
         """Handle adding a new area."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
             areas = self.config_entry.data.get("areas", [])
             areas.append(user_input)
@@ -141,30 +117,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_AREA_NAME): str,
-                    vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_INDOOR_ABS_HUMIDITY): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_INDOOR_DEW_POINT): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_INDOOR_HEAT_INDEX): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
-                    vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(
-                        selector.EntitySelectorConfig(),
-                    ),
+                    vol.Required(CONF_INDOOR_TEMP): str,
+                    vol.Required(CONF_INDOOR_HUMIDITY): str,
                 }
             ),
-            errors=errors,
         )
 
     async def async_step_remove_area(self, user_input: dict | None = None) -> FlowResult:
