@@ -7,7 +7,7 @@
   "integration_type": "device",
   "issue_tracker": "https://github.com/dpasman/smart-ventilation/issues",
   "requirements": [],
-  "version": "0.0.5",
+  "version": "0.0.6",
   "dependencies": [],
   "iot_class": "calculated"
 }

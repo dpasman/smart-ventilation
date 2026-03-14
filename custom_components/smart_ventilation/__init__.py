@@ -1,5 +1,7 @@
 """Smart Ventilation integration."""
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -8,25 +10,37 @@ from .coordinator import SmartVentilationCoordinator
 
 PLATFORMS = ["sensor", "binary_sensor"]
 
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Smart Ventilation from a config entry."""
-    outdoor_temp = entry.data.get(CONF_OUTDOOR_TEMP)
-    outdoor_abs_humidity = entry.data.get(CONF_OUTDOOR_ABS_HUMIDITY)
+    _LOGGER.info("Setting up Smart Ventilation integration")
 
-    if not outdoor_temp or not outdoor_abs_humidity:
+    try:
+        outdoor_temp = entry.data.get(CONF_OUTDOOR_TEMP)
+        outdoor_abs_humidity = entry.data.get(CONF_OUTDOOR_ABS_HUMIDITY)
+
+        _LOGGER.debug("Outdoor temp: %s, Outdoor abs humidity: %s", outdoor_temp, outdoor_abs_humidity)
+
+        if not outdoor_temp or not outdoor_abs_humidity:
+            _LOGGER.error("Missing required outdoor sensors")
+            return False
+
+        coordinator = SmartVentilationCoordinator(hass, entry)
+        await coordinator.async_config_entry_first_refresh()
+
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+        entry.async_on_unload(entry.add_update_listener(async_update_entry))
+
+        _LOGGER.info("Smart Ventilation setup complete")
+        return True
+    except Exception as exc:
+        _LOGGER.exception("Error setting up Smart Ventilation: %s", exc)
         return False
-
-    coordinator = SmartVentilationCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    entry.async_on_unload(entry.add_update_listener(async_update_entry))
-
-    return True
 
 
 async def async_update_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

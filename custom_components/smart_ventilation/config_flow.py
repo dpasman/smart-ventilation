@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
@@ -27,6 +28,8 @@ from .const import (
     DOMAIN,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Ventilation."""
@@ -35,21 +38,35 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step."""
-        if user_input is not None:
-            return self.async_create_entry(
-                title="Smart Ventilation",
-                data={**user_input, "areas": []},
-            )
+        _LOGGER.debug("async_step_user called with input: %s", user_input)
+        try:
+            if user_input is not None:
+                return self.async_create_entry(
+                    title="Smart Ventilation",
+                    data={**user_input, "areas": []},
+                )
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_OUTDOOR_TEMP): str,
-                    vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): str,
-                }
-            ),
-        )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_OUTDOOR_TEMP): str,
+                        vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): str,
+                    }
+                ),
+            )
+        except Exception as exc:
+            _LOGGER.exception("Error in async_step_user: %s", exc)
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_OUTDOOR_TEMP): str,
+                        vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): str,
+                    }
+                ),
+                errors={"base": str(exc)},
+            )
 
     @staticmethod
     @callback
