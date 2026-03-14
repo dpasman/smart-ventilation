@@ -1,11 +1,13 @@
 {
   "domain": "smart_ventilation",
   "name": "Smart Ventilation",
-  "version": "0.0.1",
-  "documentation": "https://github.com/dpasman/smart-ventilation",
-  "requirements": [],
-  "dependencies": [],
-  "codeowners": ["@dpasman"],
+  "codeowners": ["@yourusername"],
   "config_flow": true,
-  "platforms": ["sensor"]
+  "documentation": "https://github.com/yourusername/smart_ventilation",
+  "integration_type": "device",
+  "issue_tracker": "https://github.com/yourusername/smart_ventilation/issues",
+  "requirements": [],
+  "version": "1.0.0",
+  "dependencies": [],
+  "iot_class": "calculated"
 }

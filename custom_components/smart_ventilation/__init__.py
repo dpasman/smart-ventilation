@@ -1,35 +1,43 @@
 """Smart Ventilation integration."""
-import logging
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_ABS_HUMIDITY
+from .coordinator import SmartVentilationCoordinator
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up integration via YAML (optional)."""
+PLATFORMS = ["sensor", "binary_sensor"]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Smart Ventilation from a config entry."""
+    outdoor_temp = entry.data.get(CONF_OUTDOOR_TEMP)
+    outdoor_abs_humidity = entry.data.get(CONF_OUTDOOR_ABS_HUMIDITY)
+
+    if not outdoor_temp or not outdoor_abs_humidity:
+        return False
+
+    coordinator = SmartVentilationCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(async_update_entry))
+
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up integration via UI."""
-    room_name = entry.data.get("room_name", "Unknown")
-    
-    device_registry = dr.async_get(hass)
-    device = device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(entry.domain, entry.entry_id)},
-        name=f"Smart Ventilation - {room_name}",
-    )
-    
-    hass.data.setdefault(entry.domain, {})[entry.entry_id] = {
-        "device": device,
-        "room_name": room_name,
-    }
-    
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    return True
 
-async def async_unload_entry(hass, entry):
-    await hass.config_entries.async_unload_entry(entry)
-    return True
+async def async_update_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update a config entry."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+
+    return unload_ok

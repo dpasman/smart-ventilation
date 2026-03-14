@@ -1,36 +1,69 @@
 {
   "config": {
+    "title": "Smart Ventilation",
     "step": {
       "user": {
-        "title": "Configure Smart Ventilation",
-        "description": "Select required indoor sensors and optional sensors for better accuracy.",
+        "title": "Outdoor Sensors",
+        "description": "Configure the global outdoor sensors used for all areas.",
         "data": {
-          "room_name": "Room / Area",
+          "outdoor_temperature": "Outdoor Temperature",
+          "outdoor_absolute_humidity": "Outdoor Absolute Humidity",
+          "outdoor_dew_point": "Outdoor Dew Point (optional)",
+          "outdoor_temperature_max_24h": "Outdoor Temperature Max 24h (optional)",
+          "outdoor_humidity": "Outdoor Humidity (optional)",
+          "wind_average": "Wind Average (optional)",
+          "wind_max": "Wind Max (optional)"
+        }
+      },
+      "add_area": {
+        "title": "Add Area",
+        "description": "Configure sensors for a new area/room.",
+        "data": {
+          "name": "Area Name",
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
-          "outdoor_temperature": "Outdoor Temperature",
-          "outdoor_humidity": "Outdoor Humidity",
-          "co2": "CO2 Sensor",
-          "pm25_indoor": "Indoor PM2.5",
-          "pm25_outdoor": "Outdoor PM2.5",
-          "wind": "Wind Speed",
-          "heat_index_indoor": "Indoor Heat Index",
-          "heat_index_outdoor": "Outdoor Heat Index"
+          "indoor_absolute_humidity": "Indoor Absolute Humidity (optional)",
+          "indoor_dew_point": "Indoor Dew Point (optional)",
+          "indoor_heat_index": "Indoor Heat Index (optional)",
+          "indoor_co2": "Indoor CO2 (optional)",
+          "indoor_pm25": "Indoor PM2.5 (optional)"
+        }
+      },
+      "remove_area": {
+        "title": "Remove Area",
+        "data": {
+          "area_to_remove": "Select Area to Remove"
+        }
+      },
+      "menu": {
+        "title": "Manage Areas",
+        "data": {
+          "action": "Select Action"
         },
-        "data_description": {
-          "room_name": "Select the area/room for ventilation monitoring",
-          "indoor_temperature": "Select an indoor temperature sensor",
-          "indoor_humidity": "Select an indoor humidity sensor",
-          "outdoor_temperature": "Select an outdoor temperature sensor (optional)",
-          "outdoor_humidity": "Select an outdoor humidity sensor (optional)",
-          "co2": "Select a CO2 sensor (optional)",
-          "pm25_indoor": "Select an indoor PM2.5 sensor (optional)",
-          "pm25_outdoor": "Select an outdoor PM2.5 sensor (optional)",
-          "wind": "Select a wind speed sensor (optional)",
-          "heat_index_indoor": "Select an indoor heat index sensor (optional)",
-          "heat_index_outdoor": "Select an outdoor heat index sensor (optional)"
+        "actions": {
+          "add": "Add Area",
+          "remove": "Remove Area"
         }
       }
+    }
+  },
+  "options": {
+    "title": "Smart Ventilation",
+    "step": {
+      "init": {
+        "title": "Manage Areas"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ventilation_efficiency": "Ventilation Efficiency",
+      "ventilation_advice": "Ventilation Advice",
+      "humidity_difference": "Humidity Difference",
+      "temperature_difference": "Temperature Difference"
+    },
+    "binary_sensor": {
+      "cooling_recommended": "Cooling by Ventilation Recommended"
     }
   }
 }

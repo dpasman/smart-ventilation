@@ -1,132 +1,223 @@
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import HomeAssistant
+"""Sensor for Smart Ventilation."""
+
+from __future__ import annotations
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from .const import DOMAIN, CONF_INDOOR_TEMP, CONF_INDOOR_HUM, CONF_OUTDOOR_TEMP, CONF_OUTDOOR_HUM, CONF_CO2, CONF_PM25_IN, CONF_PM25_OUT, CONF_WIND, CONF_HEAT_INDEX_IN, CONF_HEAT_INDEX_OUT
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up sensor platform."""
-    data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
-    device = data.get("device")
-    room_name = data.get("room_name", "Unknown")
-    
-    sensor = SmartVentilationSensor(hass, entry, room_name, device.id if device else None)
-    async_add_entities([sensor])
+from .const import DOMAIN, DEVICE_TYPE_VENTILATION_EFFICIENCY
+from .coordinator import SmartVentilationCoordinator
 
-class SmartVentilationSensor(SensorEntity):
-    """Sensor for Smart Ventilation per room."""
 
-    def __init__(self, hass, config_entry, room_name, device_id):
-        self._hass = hass
-        self._config = config_entry.data
-        self._room_name = room_name
-        self._attr_name = f"Smart Ventilation Score {room_name}"
-        self._attr_unique_id = f"{config_entry.entry_id}"
-        self._attr_device_id = device_id
-        self._attr_entity_id = f"sensor.smart_ventilation_{room_name.lower().replace(' ', '_')}"
-        self._attr_native_unit_of_measurement = "%"
-        self._state = None
-        self._attr_extra_state_attributes = {}
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up sensors."""
+    coordinator: SmartVentilationCoordinator = hass.data[DOMAIN][entry.entry_id]
+    areas = entry.data.get("areas", [])
 
-    @property
-    def native_value(self):
-        return self._state
+    entities = []
+    for area in areas:
+        area_name = area["name"]
+        entities.append(
+            VentilationEfficiencySensor(coordinator, entry, area_name),
+        )
+        entities.append(
+            VentilationAdviceSensor(coordinator, entry, area_name),
+        )
+        entities.append(
+            HumidityDifferenceSensor(coordinator, entry, area_name),
+        )
+        entities.append(
+            TemperatureDifferenceSensor(coordinator, entry, area_name),
+        )
 
-    @property
-    def extra_state_attributes(self):
-        return self._attr_extra_state_attributes
+    async_add_entities(entities)
 
-    async def async_update(self):
-        """Calculate ventilation score for the room."""
-        def get_float(sensor_id):
-            try:
-                state = self._hass.states.get(sensor_id)
-                if state is None:
-                    return None
-                return float(state.state)
-            except:
-                return None
 
-        in_temp = get_float(self._config[CONF_INDOOR_TEMP])
-        in_hum = get_float(self._config[CONF_INDOOR_HUM])
+class VentilationEfficiencySensor(SensorEntity):
+    """Sensor for ventilation efficiency."""
 
-        if in_temp is None or in_hum is None:
-            self._state = 0
-            self._attr_extra_state_attributes = {"reason": "Indoor temperature/humidity missing"}
-            return
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:air-filter"
 
-        # optionele sensoren
-        out_temp = get_float(self._config.get(CONF_OUTDOOR_TEMP))
-        out_hum = get_float(self._config.get(CONF_OUTDOOR_HUM))
-        co2 = get_float(self._config.get(CONF_CO2))
-        pm25_in = get_float(self._config.get(CONF_PM25_IN))
-        pm25_out = get_float(self._config.get(CONF_PM25_OUT))
-        wind = get_float(self._config.get(CONF_WIND))
-        heat_index_in = get_float(self._config.get(CONF_HEAT_INDEX_IN))
-        heat_index_out = get_float(self._config.get(CONF_HEAT_INDEX_OUT))
-
-        score = 50
-        reasons = []
-
-        # Basis indoor humidity
-        if in_hum > 65:
-            score += 20
-            reasons.append("High indoor humidity")
-        elif in_hum > 55:
-            score += 10
-            reasons.append("Moderate indoor humidity")
-
-        # Buiten vergelijken als beschikbaar
-        if out_temp is not None and out_hum is not None:
-            abs_hum_in = in_hum * in_temp / 100
-            abs_hum_out = out_hum * out_temp / 100
-            hum_diff = abs_hum_in - abs_hum_out
-            score += min(max(int(hum_diff*10),0),20)
-            reasons.append(f"Humidity difference inside-outside: {hum_diff:.1f}")
-
-        # CO2
-        if co2:
-            if co2 > 1200:
-                score += 40
-                reasons.append(f"High CO2: {co2}")
-            elif co2 > 900:
-                score += 20
-                reasons.append(f"Elevated CO2: {co2}")
-
-        # PM2.5
-        if pm25_in and pm25_out:
-            if pm25_out < pm25_in:
-                score += 10
-                reasons.append("Indoor PM2.5 higher than outside")
-            elif pm25_out > 20:
-                score -= 20
-                reasons.append("Outdoor PM2.5 high - ventilate less")
-
-        # Heat index
-        if heat_index_in and heat_index_in > 35:
-            score += 10
-            reasons.append(f"High indoor heat index: {heat_index_in}")
-        elif heat_index_out and heat_index_out > 35:
-            score += 5
-            reasons.append(f"High outdoor heat index: {heat_index_out}")
-
-        # Wind
-        if wind and 2 <= wind <= 8:
-            score += 10
-            reasons.append(f"Optimal wind: {wind} m/s")
-
-        score = max(0, min(100, score))
-        self._state = score
-
-        if score >= 80:
-            advice = "Optimal"
-        elif score >= 60:
-            advice = "Recommended"
-        elif score >= 40:
-            advice = "Neutral"
-        else:
-            advice = "Not Recommended"
-
-        self._attr_extra_state_attributes = {
-            "advice": advice,
-            "reasons": reasons
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self.coordinator = coordinator
+        self.entry = entry
+        self.area_name = area_name
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_efficiency"
+        self._attr_name = f"Ventilation Efficiency {area_name}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
+            "name": area_name,
+            "manufacturer": "Smart Ventilation",
+            "model": "Ventilation Efficiency",
         }
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        data = self.coordinator.data.get(self.area_name, {})
+        efficiency = data.get("efficiency", 0)
+        self._attr_native_value = int(efficiency)
+
+        if efficiency >= 80:
+            self._attr_icon = "mdi:air-filter"
+        elif efficiency >= 60:
+            self._attr_icon = "mdi:air-purifier"
+        elif efficiency >= 30:
+            self._attr_icon = "mdi:air-humidifier"
+        else:
+            self._attr_icon = "mdi:air-humidifier-off"
+
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+        self._handle_coordinator_update()
+
+
+class VentilationAdviceSensor(SensorEntity):
+    """Sensor for ventilation advice."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self.coordinator = coordinator
+        self.entry = entry
+        self.area_name = area_name
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_advice"
+        self._attr_name = f"Ventilation Advice {area_name}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
+            "name": area_name,
+            "manufacturer": "Smart Ventilation",
+            "model": "Ventilation Advice",
+        }
+        self._attr_options = ["Optimal", "Recommended", "Decent", "Neutral", "Not Recommended"]
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        data = self.coordinator.data.get(self.area_name, {})
+        self._attr_native_value = data.get("advice", "Not Recommended")
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+        self._handle_coordinator_update()
+
+
+class HumidityDifferenceSensor(SensorEntity):
+    """Sensor for humidity difference."""
+
+    _attr_device_class = SensorDeviceClass.HUMIDITY
+    _attr_native_unit_of_measurement = "g/m³"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self.coordinator = coordinator
+        self.entry = entry
+        self.area_name = area_name
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_humidity_diff"
+        self._attr_name = f"Humidity Difference {area_name}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
+            "name": area_name,
+            "manufacturer": "Smart Ventilation",
+            "model": "Humidity Difference",
+        }
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        data = self.coordinator.data.get(self.area_name, {})
+        self._attr_native_value = data.get("humidity_difference")
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+        self._handle_coordinator_update()
+
+
+class TemperatureDifferenceSensor(SensorEntity):
+    """Sensor for temperature difference."""
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self.coordinator = coordinator
+        self.entry = entry
+        self.area_name = area_name
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_temperature_diff"
+        self._attr_name = f"Temperature Difference {area_name}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
+            "name": area_name,
+            "manufacturer": "Smart Ventilation",
+            "model": "Temperature Difference",
+        }
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        data = self.coordinator.data.get(self.area_name, {})
+        self._attr_native_value = data.get("temperature_difference")
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+        self._handle_coordinator_update()
