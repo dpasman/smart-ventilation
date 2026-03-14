@@ -51,7 +51,10 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema(
                     {
                         vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(),
-                        vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): selector.EntitySelector(),
+                        vol.Required(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(),
+                        vol.Optional(CONF_OUTDOOR_TEMP_MAX_24H): selector.EntitySelector(),
+                        vol.Optional(CONF_WIND_AVG): selector.EntitySelector(),
+                        vol.Optional(CONF_WIND_MAX): selector.EntitySelector(),
                     }
                 ),
             )
@@ -134,8 +137,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_AREA_NAME): str,
-                    vol.Required(CONF_INDOOR_TEMP): str,
-                    vol.Required(CONF_INDOOR_HUMIDITY): str,
+                    vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(),
+                    vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(),
+                    vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(),
+                    vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(),
                 }
             ),
         )

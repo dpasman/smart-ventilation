@@ -27,6 +27,9 @@ from .const import (
     DOMAIN,
     VentilationCalculator,
     get_advice,
+    calculate_absolute_humidity,
+    calculate_dew_point,
+    calculate_heat_index,
 )
 
 
@@ -85,6 +88,15 @@ class SmartVentilationCoordinator(DataUpdateCoordinator):
             else:
                 outdoor[key] = None
 
+        out_temp = outdoor.get("outdoor_temp")
+        out_rh = outdoor.get("outdoor_humidity")
+
+        if outdoor.get("outdoor_abs_humidity") is None and out_temp is not None and out_rh is not None:
+            outdoor["outdoor_abs_humidity"] = calculate_absolute_humidity(out_temp, out_rh)
+
+        if outdoor.get("outdoor_dew_point") is None and out_temp is not None and out_rh is not None:
+            outdoor["outdoor_dew_point"] = calculate_dew_point(out_temp, out_rh)
+
         return outdoor
 
     async def _get_area_data(self, area_config: dict, outdoor_data: dict) -> dict[str, Any]:
@@ -112,6 +124,18 @@ class SmartVentilationCoordinator(DataUpdateCoordinator):
                     indoor[key] = None
             else:
                 indoor[key] = None
+
+        in_temp = indoor.get("indoor_temp")
+        in_rh = indoor.get("indoor_humidity")
+
+        if indoor.get("indoor_abs_humidity") is None and in_temp is not None and in_rh is not None:
+            indoor["indoor_abs_humidity"] = calculate_absolute_humidity(in_temp, in_rh)
+
+        if indoor.get("indoor_dew_point") is None and in_temp is not None and in_rh is not None:
+            indoor["indoor_dew_point"] = calculate_dew_point(in_temp, in_rh)
+
+        if indoor.get("indoor_heat_index") is None and in_temp is not None and in_rh is not None:
+            indoor["indoor_heat_index"] = calculate_heat_index(in_temp, in_rh)
 
         calculator = VentilationCalculator(
             in_temp=indoor.get("indoor_temp") if indoor.get("indoor_temp") is not None else -999,

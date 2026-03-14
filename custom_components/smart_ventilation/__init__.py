@@ -19,12 +19,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         outdoor_temp = entry.data.get(CONF_OUTDOOR_TEMP)
-        outdoor_abs_humidity = entry.data.get(CONF_OUTDOOR_ABS_HUMIDITY)
 
-        _LOGGER.debug("Outdoor temp: %s, Outdoor abs humidity: %s", outdoor_temp, outdoor_abs_humidity)
+        _LOGGER.debug("Outdoor temp: %s", outdoor_temp)
 
-        if not outdoor_temp or not outdoor_abs_humidity:
-            _LOGGER.error("Missing required outdoor sensors")
+        if not outdoor_temp:
+            _LOGGER.error("Missing required outdoor temperature sensor")
             return False
 
         coordinator = SmartVentilationCoordinator(hass, entry)
