@@ -40,8 +40,8 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow):
             )
 
         schema = vol.Schema({
-            vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(),
-            vol.Required(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(),
+            vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Required(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(selector.EntitySelectorConfig()),
         })
         
         return self.async_show_form(step_id="user", data_schema=schema)
@@ -105,10 +105,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         schema = vol.Schema({
             vol.Required(CONF_AREA_NAME): str,
-            vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(),
-            vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(),
-            vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(),
-            vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(),
+            vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(selector.EntitySelectorConfig()),
         })
         return self.async_show_form(step_id="add_area", data_schema=schema)
 
