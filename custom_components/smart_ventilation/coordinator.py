@@ -1,5 +1,6 @@
 """Coordinator for Smart Ventilation."""
 
+import logging
 from datetime import timedelta
 from typing import Any
 
@@ -40,6 +41,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             name=DOMAIN,
+            logger=logging.getLogger(__name__),
             update_interval=timedelta(minutes=1),
         )
 
