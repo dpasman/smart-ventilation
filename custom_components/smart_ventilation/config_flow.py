@@ -2,7 +2,7 @@
 
 import logging
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
@@ -15,24 +15,22 @@ from .const import (
     CONF_INDOOR_TEMP,
     CONF_OUTDOOR_HUMIDITY,
     CONF_OUTDOOR_TEMP,
-    CONF_OUTDOOR_TEMP_MAX_24H,
-    CONF_WIND_AVG,
-    CONF_WIND_MAX,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class SmartVentilationConfigFlow(config_entries.ConfigFlow):
+class SmartVentilationConfigFlow(ConfigFlow):
     """Handle a config flow for Smart Ventilation."""
 
     VERSION = 1
+    domain = DOMAIN
 
-    async def async_step_user(self, user_input=None, kwargs=None):
+    async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step."""
         _LOGGER.debug("async_step_user called with input: %s", user_input)
-        
+
         if user_input is not None:
             return self.async_create_entry(
                 title="Smart Ventilation",
@@ -40,27 +38,31 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow):
             )
 
         schema = vol.Schema({
-            vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(selector.EntitySelectorConfig()),
-            vol.Required(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
+            vol.Required(CONF_OUTDOOR_HUMIDITY): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
         })
-        
+
         return self.async_show_form(step_id="user", data_schema=schema)
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow."""
-        return OptionsFlowHandler(config_entry)
+        return SmartVentilationOptionsFlow(config_entry)
 
 
-class OptionsFlowHandler(config_entries.OptionsFlow):
+class SmartVentilationOptionsFlow(OptionsFlow):
     """Handle options flow for Smart Ventilation."""
 
     def __init__(self, config_entry):
         """Initialize options flow."""
         self.config_entry = config_entry
 
-    async def async_step_init(self, user_input=None, kwargs=None):
+    async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         """Manage the options."""
         areas = self.config_entry.data.get("areas", [])
 
@@ -69,7 +71,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         return await self.async_step_menu()
 
-    async def async_step_menu(self, user_input=None, kwargs=None):
+    async def async_step_menu(self, user_input: dict | None = None) -> FlowResult:
         """Handle menu selection."""
         if user_input is not None:
             action = user_input.get("action")
@@ -91,7 +93,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         })
         return self.async_show_form(step_id="menu", data_schema=schema)
 
-    async def async_step_add_area(self, user_input=None, kwargs=None):
+    async def async_step_add_area(self, user_input: dict | None = None) -> FlowResult:
         """Handle adding a new area."""
         if user_input is not None:
             areas = self.config_entry.data.get("areas", [])
@@ -105,14 +107,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         schema = vol.Schema({
             vol.Required(CONF_AREA_NAME): str,
-            vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(selector.EntitySelectorConfig()),
-            vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(selector.EntitySelectorConfig()),
-            vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(selector.EntitySelectorConfig()),
-            vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(selector.EntitySelectorConfig()),
+            vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
+            vol.Required(CONF_INDOOR_HUMIDITY): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
+            vol.Optional(CONF_INDOOR_CO2): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
+            vol.Optional(CONF_INDOOR_PM25): selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            ),
         })
         return self.async_show_form(step_id="add_area", data_schema=schema)
 
-    async def async_step_remove_area(self, user_input=None, kwargs=None):
+    async def async_step_remove_area(self, user_input: dict | None = None) -> FlowResult:
         """Handle removing an area."""
         areas = self.config_entry.data.get("areas", [])
 
