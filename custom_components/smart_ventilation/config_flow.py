@@ -69,7 +69,7 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    def async_get_options_flow(config_entry):
         """Get the options flow."""
         return OptionsFlowHandler()
 
