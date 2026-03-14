@@ -50,8 +50,8 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=vol.Schema(
                     {
-                        vol.Required(CONF_OUTDOOR_TEMP): str,
-                        vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): str,
+                        vol.Required(CONF_OUTDOOR_TEMP): selector.EntitySelector(),
+                        vol.Required(CONF_OUTDOOR_ABS_HUMIDITY): selector.EntitySelector(),
                     }
                 ),
             )
