@@ -4,13 +4,13 @@
     "step": {
       "user": {
         "title": "Outdoor Sensors",
-        "description": "Configure the global outdoor sensors used for all areas.",
+        "description": "Configure the global outdoor sensors used for all areas. Absolute humidity and dew point are calculated automatically if you provide relative humidity.",
         "data": {
           "outdoor_temperature": "Outdoor Temperature",
-          "outdoor_absolute_humidity": "Outdoor Absolute Humidity",
-          "outdoor_dew_point": "Outdoor Dew Point (optional)",
+          "outdoor_humidity": "Outdoor Relative Humidity",
+          "outdoor_absolute_humidity": "Outdoor Absolute Humidity (optional, calculated if omitted)",
+          "outdoor_dew_point": "Outdoor Dew Point (optional, calculated if omitted)",
           "outdoor_temperature_max_24h": "Outdoor Max Temperature 24h (optional)",
-          "outdoor_humidity": "Outdoor Relative Humidity (optional)",
           "wind_average": "Wind Average (optional)",
           "wind_max": "Wind Maximum (optional)"
         }
@@ -31,14 +31,28 @@
       },
       "add_area": {
         "title": "Add Area",
-        "description": "Configure sensors for a new area or room.",
+        "description": "Configure sensors for a new area. Absolute humidity, dew point and heat index are calculated automatically from temperature and humidity.",
         "data": {
           "name": "Area",
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
-          "indoor_absolute_humidity": "Indoor Absolute Humidity (optional)",
-          "indoor_dew_point": "Indoor Dew Point (optional)",
-          "indoor_heat_index": "Indoor Heat Index (optional)",
+          "indoor_co2": "Indoor CO2 (optional)",
+          "indoor_pm25": "Indoor PM2.5 (optional)"
+        }
+      },
+      "edit_area_select": {
+        "title": "Edit Area",
+        "data": {
+          "area_to_edit": "Select Area to Edit"
+        }
+      },
+      "edit_area": {
+        "title": "Edit Area",
+        "description": "Update the sensors for this area.",
+        "data": {
+          "name": "Area",
+          "indoor_temperature": "Indoor Temperature",
+          "indoor_humidity": "Indoor Humidity",
           "indoor_co2": "Indoor CO2 (optional)",
           "indoor_pm25": "Indoor PM2.5 (optional)"
         }

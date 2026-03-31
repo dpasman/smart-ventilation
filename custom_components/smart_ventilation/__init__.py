@@ -5,7 +5,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_OUTDOOR_ABS_HUMIDITY, CONF_OUTDOOR_TEMP, DOMAIN
+from .const import CONF_OUTDOOR_TEMP, DOMAIN
 from .coordinator import SmartVentilationCoordinator
 
 PLATFORMS = ["sensor", "binary_sensor"]
@@ -13,7 +13,7 @@ PLATFORMS = ["sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Smart Ventilation from a config entry."""
-    if not entry.data.get(CONF_OUTDOOR_TEMP) or not entry.data.get(CONF_OUTDOOR_ABS_HUMIDITY):
+    if not entry.data.get(CONF_OUTDOOR_TEMP):
         return False
 
     coordinator = SmartVentilationCoordinator(hass, entry)

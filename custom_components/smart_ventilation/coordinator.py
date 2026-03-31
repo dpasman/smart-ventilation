@@ -10,13 +10,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .calculator import VentilationCalculator, get_advice
+from .calculator import (
+    VentilationCalculator,
+    calculate_absolute_humidity,
+    calculate_dew_point,
+    calculate_heat_index,
+    get_advice,
+)
 from .const import (
     CONF_AREA_NAME,
-    CONF_INDOOR_ABS_HUMIDITY,
     CONF_INDOOR_CO2,
-    CONF_INDOOR_DEW_POINT,
-    CONF_INDOOR_HEAT_INDEX,
     CONF_INDOOR_HUMIDITY,
     CONF_INDOOR_PM25,
     CONF_INDOOR_TEMP,
@@ -67,14 +70,25 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             return None
 
     def _get_outdoor_data(self) -> dict[str, float | None]:
-        """Read all outdoor sensor states from HA."""
+        """Read all outdoor sensor states from HA, computing derived values if needed."""
         cfg = self.entry.data
+        outdoor_temp = self._read_state(cfg.get(CONF_OUTDOOR_TEMP))
+        outdoor_rh = self._read_state(cfg.get(CONF_OUTDOOR_HUMIDITY))
+
+        outdoor_abs = self._read_state(cfg.get(CONF_OUTDOOR_ABS_HUMIDITY))
+        if outdoor_abs is None and outdoor_temp is not None and outdoor_rh is not None:
+            outdoor_abs = calculate_absolute_humidity(outdoor_temp, outdoor_rh)
+
+        outdoor_dew = self._read_state(cfg.get(CONF_OUTDOOR_DEW_POINT))
+        if outdoor_dew is None and outdoor_temp is not None and outdoor_rh is not None:
+            outdoor_dew = calculate_dew_point(outdoor_temp, outdoor_rh)
+
         return {
-            "outdoor_temp": self._read_state(cfg.get(CONF_OUTDOOR_TEMP)),
-            "outdoor_abs_humidity": self._read_state(cfg.get(CONF_OUTDOOR_ABS_HUMIDITY)),
-            "outdoor_dew_point": self._read_state(cfg.get(CONF_OUTDOOR_DEW_POINT)),
+            "outdoor_temp": outdoor_temp,
+            "outdoor_abs_humidity": outdoor_abs,
+            "outdoor_dew_point": outdoor_dew,
             "outdoor_temp_max_24h": self._read_state(cfg.get(CONF_OUTDOOR_TEMP_MAX_24H)),
-            "outdoor_humidity": self._read_state(cfg.get(CONF_OUTDOOR_HUMIDITY)),
+            "outdoor_humidity": outdoor_rh,
             "wind_avg": self._read_state(cfg.get(CONF_WIND_AVG)),
             "wind_max": self._read_state(cfg.get(CONF_WIND_MAX)),
         }
@@ -87,16 +101,24 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         in_humidity = self._read_state(area_config.get(CONF_INDOOR_HUMIDITY))
         out_temp = outdoor["outdoor_temp"]
 
+        in_hum_abs = None
+        in_dew = None
+        in_heat_index = None
+        if in_temp is not None and in_humidity is not None:
+            in_hum_abs = calculate_absolute_humidity(in_temp, in_humidity)
+            in_dew = calculate_dew_point(in_temp, in_humidity)
+            in_heat_index = calculate_heat_index(in_temp, in_humidity)
+
         calc = VentilationCalculator(
             in_temp=in_temp,
             in_rh=in_humidity,
             out_temp=out_temp,
             out_hum_abs=outdoor["outdoor_abs_humidity"],
-            in_hum_abs=self._read_state(area_config.get(CONF_INDOOR_ABS_HUMIDITY)),
-            in_dew=self._read_state(area_config.get(CONF_INDOOR_DEW_POINT)),
+            in_hum_abs=in_hum_abs,
+            in_dew=in_dew,
             out_dew=outdoor["outdoor_dew_point"],
             out_temp_max=outdoor["outdoor_temp_max_24h"],
-            in_heat_index=self._read_state(area_config.get(CONF_INDOOR_HEAT_INDEX)),
+            in_heat_index=in_heat_index,
             in_co2=self._read_state(area_config.get(CONF_INDOOR_CO2)),
             in_pm25=self._read_state(area_config.get(CONF_INDOOR_PM25)),
             wind_avg=outdoor["wind_avg"],
@@ -116,10 +138,9 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         )
 
         humidity_diff = None
-        in_abs = self._read_state(area_config.get(CONF_INDOOR_ABS_HUMIDITY))
         out_abs = outdoor["outdoor_abs_humidity"]
-        if in_abs is not None and out_abs is not None:
-            humidity_diff = round(in_abs - out_abs, 2)
+        if in_hum_abs is not None and out_abs is not None:
+            humidity_diff = round(in_hum_abs - out_abs, 2)
 
         temp_diff = None
         if in_temp is not None and out_temp is not None:
