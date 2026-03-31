@@ -21,7 +21,7 @@ async def async_setup_entry(
     coordinator: SmartVentilationCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         CoolingRecommendedBinarySensor(coordinator, entry, area["name"], area.get("area_id"))
-        for area in entry.data.get("areas", [])
+        for area in (entry.options.get("areas") or entry.data.get("areas", []))
     )
 
 

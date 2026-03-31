@@ -62,7 +62,7 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             return self.async_create_entry(
                 title="Smart Ventilation",
-                data={**user_input, "areas": []},
+                data={**user_input},
             )
 
         return self.async_show_form(
@@ -110,27 +110,27 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for Smart Ventilation — manage areas.
 
-    Note: self.config_entry is set automatically by the OptionsFlow base class
-    in HA 2024.x+. Do NOT define __init__ here.
+    Areas are stored in entry.options so that async_create_entry triggers
+    exactly one reload. Do NOT define __init__ here (HA 2024.x+).
     """
+
+    def _get_areas(self) -> list:
+        """Return current areas from options (preferred) or data (legacy)."""
+        return list(
+            self.config_entry.options.get("areas")
+            or self.config_entry.data.get("areas", [])
+        )
 
     def _resolve_area(self, area_id: str) -> str:
         """Return the human-readable area name from the HA area registry."""
         entry = ar.async_get(self.hass).async_get_area(area_id)
         return entry.name if entry else area_id
 
-    def _save_areas(self, areas: list) -> None:
-        """Persist updated areas list to the config entry."""
-        self.hass.config_entries.async_update_entry(
-            self.config_entry,
-            data={**self.config_entry.data, "areas": areas},
-        )
-
     async def async_step_init(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Show area management menu, or go straight to add if no areas exist."""
-        if not self.config_entry.data.get("areas"):
+        if not self._get_areas():
             return await self.async_step_add_area()
 
         return self.async_show_form(
@@ -175,10 +175,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             area_id = user_input[CONF_AREA_NAME]
             area_name = self._resolve_area(area_id)
             area_data = {**user_input, CONF_AREA_NAME: area_name, "area_id": area_id}
-            areas = list(self.config_entry.data.get("areas", []))
+            areas = self._get_areas()
             areas.append(area_data)
-            self._save_areas(areas)
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(title="", data={"areas": areas})
 
         return self.async_show_form(step_id="add_area", data_schema=_area_schema())
 
@@ -186,7 +185,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Select which area to edit."""
-        areas = self.config_entry.data.get("areas", [])
+        areas = self._get_areas()
 
         if user_input is not None:
             self._editing_area_name = user_input["area_to_edit"]
@@ -215,7 +214,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Edit an existing area."""
-        areas = self.config_entry.data.get("areas", [])
+        areas = self._get_areas()
         editing_name = getattr(self, "_editing_area_name", None)
         current = next((a for a in areas if a[CONF_AREA_NAME] == editing_name), None)
 
@@ -226,8 +225,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             new_areas = [
                 area_data if a[CONF_AREA_NAME] == editing_name else a for a in areas
             ]
-            self._save_areas(new_areas)
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(title="", data={"areas": new_areas})
 
         suggested: dict = {}
         if current:
@@ -248,13 +246,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Remove an existing area."""
-        areas = self.config_entry.data.get("areas", [])
+        areas = self._get_areas()
 
         if user_input is not None:
             area_name = user_input.get("area_to_remove")
             new_areas = [a for a in areas if a[CONF_AREA_NAME] != area_name]
-            self._save_areas(new_areas)
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(title="", data={"areas": new_areas})
 
         return self.async_show_form(
             step_id="remove_area",

@@ -25,7 +25,7 @@ async def async_setup_entry(
     """Set up sensor entities for each configured area."""
     coordinator: SmartVentilationCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
-    for area in entry.data.get("areas", []):
+    for area in (entry.options.get("areas") or entry.data.get("areas", [])):
         area_name = area["name"]
         area_id = area.get("area_id")
         entities.extend(

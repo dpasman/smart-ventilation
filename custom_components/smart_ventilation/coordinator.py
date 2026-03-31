@@ -52,9 +52,10 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch sensor states and calculate data for all configured areas."""
         outdoor = self._get_outdoor_data()
+        areas = self.entry.options.get("areas") or self.entry.data.get("areas", [])
         return {
             area[CONF_AREA_NAME]: self._get_area_data(area, outdoor)
-            for area in self.entry.data.get("areas", [])
+            for area in areas
         }
 
     def _read_state(self, entity_id: str | None) -> float | None:
