@@ -20,7 +20,7 @@ async def async_setup_entry(
     """Set up binary sensor entities for each configured area."""
     coordinator: SmartVentilationCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
-        CoolingRecommendedBinarySensor(coordinator, entry, area["name"])
+        CoolingRecommendedBinarySensor(coordinator, entry, area["name"], area.get("area_id"))
         for area in entry.data.get("areas", [])
     )
 
@@ -39,6 +39,7 @@ class CoolingRecommendedBinarySensor(
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self.area_name = area_name
@@ -47,6 +48,7 @@ class CoolingRecommendedBinarySensor(
             "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
             "name": area_name,
             "manufacturer": "Smart Ventilation",
+            "suggested_area": area_name,
         }
 
     @property

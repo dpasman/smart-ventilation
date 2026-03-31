@@ -33,7 +33,7 @@
         "title": "Add Area",
         "description": "Configure sensors for a new area or room.",
         "data": {
-          "name": "Area Name",
+          "name": "Area",
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
           "indoor_absolute_humidity": "Indoor Absolute Humidity (optional)",

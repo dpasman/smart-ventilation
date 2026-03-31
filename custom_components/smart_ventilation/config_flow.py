@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import area_registry as ar, selector
 
 from .const import (
     CONF_AREA_NAME,
@@ -134,8 +134,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> ConfigFlowResult:
         """Add a new area with its indoor sensors."""
         if user_input is not None:
+            area_id = user_input[CONF_AREA_NAME]
+            area_entry = ar.async_get(self.hass).async_get_area(area_id)
+            area_name = area_entry.name if area_entry else area_id
+            area_data = {**user_input, CONF_AREA_NAME: area_name, "area_id": area_id}
             areas = list(self.config_entry.data.get("areas", []))
-            areas.append(user_input)
+            areas.append(area_data)
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 data={**self.config_entry.data, "areas": areas},
@@ -146,7 +150,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="add_area",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_AREA_NAME): str,
+                    vol.Required(CONF_AREA_NAME): selector.AreaSelector(),
                     vol.Required(CONF_INDOOR_TEMP): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain="sensor", device_class="temperature"

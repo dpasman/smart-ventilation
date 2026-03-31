@@ -27,23 +27,26 @@ async def async_setup_entry(
     entities = []
     for area in entry.data.get("areas", []):
         area_name = area["name"]
+        area_id = area.get("area_id")
         entities.extend(
             [
-                VentilationEfficiencySensor(coordinator, entry, area_name),
-                VentilationAdviceSensor(coordinator, entry, area_name),
-                HumidityDifferenceSensor(coordinator, entry, area_name),
-                TemperatureDifferenceSensor(coordinator, entry, area_name),
+                VentilationEfficiencySensor(coordinator, entry, area_name, area_id),
+                VentilationAdviceSensor(coordinator, entry, area_name, area_id),
+                HumidityDifferenceSensor(coordinator, entry, area_name, area_id),
+                TemperatureDifferenceSensor(coordinator, entry, area_name, area_id),
             ]
         )
     async_add_entities(entities)
 
 
-def _device_info(entry: ConfigEntry, area_name: str) -> dict:
-    return {
+def _device_info(entry: ConfigEntry, area_name: str, area_id: str | None = None) -> dict:
+    info: dict = {
         "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
         "name": area_name,
         "manufacturer": "Smart Ventilation",
+        "suggested_area": area_name,
     }
+    return info
 
 
 class _AreaSensor(CoordinatorEntity[SmartVentilationCoordinator], SensorEntity):
@@ -56,10 +59,11 @@ class _AreaSensor(CoordinatorEntity[SmartVentilationCoordinator], SensorEntity):
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self.area_name = area_name
-        self._attr_device_info = _device_info(entry, area_name)
+        self._attr_device_info = _device_info(entry, area_name, area_id)
 
     @property
     def available(self) -> bool:
@@ -91,8 +95,9 @@ class VentilationEfficiencySensor(_AreaSensor):
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
-        super().__init__(coordinator, entry, area_name)
+        super().__init__(coordinator, entry, area_name, area_id)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_efficiency"
 
     def _update_from_data(self, data: dict) -> None:
@@ -120,8 +125,9 @@ class VentilationAdviceSensor(_AreaSensor):
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
-        super().__init__(coordinator, entry, area_name)
+        super().__init__(coordinator, entry, area_name, area_id)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_advice"
 
     def _update_from_data(self, data: dict) -> None:
@@ -141,8 +147,9 @@ class HumidityDifferenceSensor(_AreaSensor):
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
-        super().__init__(coordinator, entry, area_name)
+        super().__init__(coordinator, entry, area_name, area_id)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_humidity_diff"
 
     def _update_from_data(self, data: dict) -> None:
@@ -162,8 +169,9 @@ class TemperatureDifferenceSensor(_AreaSensor):
         coordinator: SmartVentilationCoordinator,
         entry: ConfigEntry,
         area_name: str,
+        area_id: str | None = None,
     ) -> None:
-        super().__init__(coordinator, entry, area_name)
+        super().__init__(coordinator, entry, area_name, area_id)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_temperature_diff"
 
     def _update_from_data(self, data: dict) -> None:

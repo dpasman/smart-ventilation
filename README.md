@@ -1,92 +1,86 @@
-# Smart Ventilation for Home Assistant
+# Smart Ventilation
 
-A Home Assistant integration that calculates ventilation efficiency based on indoor and outdoor environmental conditions. It provides recommendations on when it's optimal to ventilate your home.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+
+Smart Ventilation is a Home Assistant integration that tells you when and where to open your windows. It compares indoor and outdoor conditions across multiple rooms and calculates a ventilation efficiency score per area. Instead of guessing, you get a clear recommendation based on temperature, humidity, CO2, and air quality data from your existing sensors.
 
 ## Features
 
-- Calculates ventilation efficiency based on temperature, humidity, CO2, and PM2.5 levels
-- Supports multiple areas/rooms
-- Provides actionable advice for ventilation decisions
-- Detects room type (kitchen, bathroom, bedroom, attic) for customized calculations
-- Calculates temperature and humidity differences between indoor and outdoor
+- Calculates a ventilation efficiency score (0-100%) for each room
+- Provides a plain-language advice level: Optimal, Recommended, Decent, Neutral, or Not Recommended
+- Detects room type from the area name for room-specific logic (kitchen, bathroom, bedroom, attic)
+- Shows indoor vs outdoor humidity and temperature differences
+- Separate cooling recommendation for hot days when outside air is cooler
+- Supports multiple areas with independent calculations
+- Fully configured through the UI, no YAML required
 
 ## Installation
 
-### Via HACS (Recommended)
+### Via HACS (recommended)
 
-1. Open Home Assistant
-2. Go to HACS > Integrations
-3. Click the three dots (top right) > Custom repositories
-4. Add `https://github.com/dpasman/smart-ventilation`
-5. Search for "Smart Ventilation" and install
+1. Open HACS in Home Assistant
+2. Go to Integrations
+3. Click the three dots in the top right and choose Custom repositories
+4. Add `https://github.com/dpasman/smart-ventilation` with category Integration
+5. Search for Smart Ventilation and install it
+6. Restart Home Assistant
 
-### Manual Installation
+### Manual
 
-1. Copy the `custom_components/smart_ventilation` folder to your Home Assistant's `custom_components` folder
+1. Copy the `custom_components/smart_ventilation` folder into your Home Assistant `custom_components` directory
 2. Restart Home Assistant
 
-## Configuration
+## Setup
 
-### Via UI
+Go to Settings > Devices & Services, click Add Integration, and search for Smart Ventilation.
 
-1. Go to Settings > Devices & Services
-2. Click "Add Integration"
-3. Search for "Smart Ventilation"
-4. Follow the configuration steps
+The first step asks for your outdoor sensors. Only outdoor temperature and outdoor absolute humidity are required. The rest are optional but improve the recommendations.
 
-### Configuration Options
+| Field | Required | Notes |
+|---|---|---|
+| Outdoor Temperature | Yes | |
+| Outdoor Absolute Humidity | Yes | |
+| Outdoor Relative Humidity | No | |
+| Outdoor Dew Point | No | Used to prevent condensation |
+| Outdoor Max Temperature 24h | No | Improves cold weather logic |
+| Wind Average | No | |
+| Wind Maximum | No | |
 
-- **Outdoor Temperature**: Entity with outdoor temperature sensor (required)
-- **Outdoor Absolute Humidity**: Entity with outdoor absolute humidity (required)
-- **Outdoor Humidity**: Entity with outdoor relative humidity (optional)
-- **Outdoor Dew Point**: Entity with outdoor dew point (optional)
-- **Outdoor Max Temperature (24h)**: Entity with 24h maximum temperature (optional)
-- **Wind Average**: Entity with average wind speed (optional)
-- **Wind Maximum**: Entity with maximum wind speed (optional)
+After saving, open the integration options to add your first area. Select a Home Assistant area from the list, then assign the sensors for that room. You can add as many areas as you like.
 
-### Areas Configuration
-
-For each area/room, you can configure:
-
-- Area name
-- Indoor temperature sensor
-- Indoor humidity sensor
-- Indoor absolute humidity sensor
-- Indoor dew point sensor
-- Indoor heat index sensor
-- Indoor CO2 sensor
-- Indoor PM2.5 sensor
+| Field | Required |
+|---|---|
+| Indoor Temperature | Yes |
+| Indoor Humidity | Yes |
+| Indoor Absolute Humidity | No |
+| Indoor Dew Point | No |
+| Indoor Heat Index | No |
+| Indoor CO2 | No |
+| Indoor PM2.5 | No |
 
 ## Entities
 
-The integration creates the following entities for each configured area:
+For each configured area, the integration creates:
 
-### Sensors
+| Entity | Type | Description |
+|---|---|---|
+| Ventilation Efficiency | Sensor | Score from 0 to 100% |
+| Ventilation Advice | Sensor | Optimal / Recommended / Decent / Neutral / Not Recommended |
+| Humidity Difference | Sensor | Indoor minus outdoor absolute humidity (g/m³) |
+| Temperature Difference | Sensor | Indoor minus outdoor temperature (°C) |
+| Cooling by Ventilation Recommended | Binary Sensor | True when outside air is meaningfully cooler than inside |
 
-- **Ventilation Efficiency**: Percentage efficiency of ventilation (0-100%)
-- **Ventilation Advice**: Human-readable recommendation
-- **Humidity Difference**: Indoor - Outdoor absolute humidity
-- **Temperature Difference**: Indoor - Outdoor temperature
-- **Cooling Recommended**: Boolean indicating if cooling via ventilation is recommended
+## Room types
 
-### Binary Sensors
+The integration reads the area name to determine room type and adjusts the scoring accordingly:
 
-- **Ventilation Reasons**: Multiple binary sensors for each factor affecting ventilation (temperature benefit, humidity benefit, etc.)
+- **Kitchen**: Prioritizes humidity and CO2
+- **Bathroom**: Aggressive humidity reduction, post-shower detection
+- **Bedroom**: CO2 is the dominant factor
+- **Attic**: Focuses on temperature cooling, ignores humidity
 
-## Room Types
+Any area that does not match a known keyword uses the generic scoring logic.
 
-The integration automatically detects room types based on area names:
+## Issues and contributions
 
-- **Kitchen**: Higher priority for humidity and CO2
-- **Bathroom**: Highest priority for humidity
-- **Bedroom**: Higher priority for CO2 levels
-- **Attic**: Temperature-focused optimization
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Issues
-
-If you encounter any issues, please report them at:
-https://github.com/dpasman/smart-ventilation/issues
+Bug reports and pull requests are welcome at [github.com/dpasman/smart-ventilation](https://github.com/dpasman/smart-ventilation/issues).
