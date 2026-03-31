@@ -21,6 +21,10 @@ Smart Ventilation is a Home Assistant integration that tells you when and where 
 
 ### Via HACS (recommended)
 
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dpasman&repository=smart-ventilation&category=integration)
+
+Click the button above, or add it manually:
+
 1. Open HACS in Home Assistant
 2. Go to Integrations
 3. Click the three dots in the top right and choose Custom repositories
