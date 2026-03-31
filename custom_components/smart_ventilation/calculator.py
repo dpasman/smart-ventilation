@@ -182,7 +182,7 @@ class VentilationCalculator:
             reasons.append("Outside too hot — ventilation discouraged")
 
         if self.in_co2 is not None and self.in_co2 > 800:
-            reasons.append(f"Elevated CO\u2082 ({int(self.in_co2)} ppm)")
+            reasons.append(f"Elevated CO₂ ({int(self.in_co2)} ppm)")
 
         if self.room_type == "bathroom" and self.in_rh is not None and self.in_rh >= 80:
             reasons.append("Post-shower override active")

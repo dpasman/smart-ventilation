@@ -66,11 +66,11 @@ class CoolingRecommendedBinarySensor(
         efficiency = data.get("efficiency", 0)
 
         if in_temp is not None and in_temp <= 23:
-            reasons.append("Inside not warm enough (\u226423\u00b0C)")
+            reasons.append("Inside not warm enough (≤23°C)")
         if in_temp is not None and out_temp is not None and out_temp >= in_temp:
             reasons.append("Outside not cooler than inside")
         if efficiency <= 30:
-            reasons.append("Ventilation efficiency too low (\u226430%)")
+            reasons.append("Ventilation efficiency too low (≤30%)")
         if self._attr_is_on:
             reasons.append("Favorable conditions for summer ventilation")
 
