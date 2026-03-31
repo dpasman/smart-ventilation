@@ -1,6 +1,9 @@
 # Smart Ventilation
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub release](https://img.shields.io/github/v/release/dpasman/smart-ventilation)](https://github.com/dpasman/smart-ventilation/releases)
+[![GitHub license](https://img.shields.io/github/license/dpasman/smart-ventilation)](https://github.com/dpasman/smart-ventilation/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/dpasman/smart-ventilation)](https://github.com/dpasman/smart-ventilation/issues)
 
 Smart Ventilation is a Home Assistant integration that tells you when and where to open your windows. It compares indoor and outdoor conditions across multiple rooms and calculates a ventilation efficiency score per area. Instead of guessing, you get a clear recommendation based on temperature, humidity, CO2, and air quality data from your existing sensors.
 
@@ -84,3 +87,7 @@ Any area that does not match a known keyword uses the generic scoring logic.
 ## Issues and contributions
 
 Bug reports and pull requests are welcome at [github.com/dpasman/smart-ventilation](https://github.com/dpasman/smart-ventilation/issues).
+
+## Changelog
+
+Version history is tracked via [GitHub releases](https://github.com/dpasman/smart-ventilation/releases). The current version is also reflected in `custom_components/smart_ventilation/manifest.json`.
