@@ -4,10 +4,9 @@
   "codeowners": ["@dpasman"],
   "config_flow": true,
   "documentation": "https://github.com/dpasman/smart-ventilation",
-  "integration_type": "device",
+  "integration_type": "service",
   "issue_tracker": "https://github.com/dpasman/smart-ventilation/issues",
   "requirements": [],
-  "version": "0.0.1",
-  "dependencies": [],
+  "version": "1.0.0",
   "iot_class": "calculated"
 }
