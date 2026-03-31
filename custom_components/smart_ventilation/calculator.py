@@ -11,7 +11,7 @@ def calculate_absolute_humidity(temp_c: float, rh: float) -> float:
         return 0.0
     sat_vp = 6.112 * math.exp(17.67 * temp_c / (temp_c + 243.5))
     actual_vp = sat_vp * (rh / 100)
-    return round((actual_vp * 2.1674) / (273.15 + temp_c), 2)
+    return round((actual_vp * 216.74) / (273.15 + temp_c), 2)
 
 
 def calculate_dew_point(temp_c: float, rh: float) -> float:
