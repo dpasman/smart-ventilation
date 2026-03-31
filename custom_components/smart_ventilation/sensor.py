@@ -1,4 +1,4 @@
-"""Sensor for Smart Ventilation."""
+"""Sensor platform for Smart Ventilation."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, DEVICE_TYPE_VENTILATION_EFFICIENCY
+from .const import DOMAIN, VENTILATION_ADVICE_LEVELS
 from .coordinator import SmartVentilationCoordinator
 
 
@@ -22,36 +22,34 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensors."""
+    """Set up sensor entities for each configured area."""
     coordinator: SmartVentilationCoordinator = hass.data[DOMAIN][entry.entry_id]
-    areas = entry.data.get("areas", [])
-
     entities = []
-    for area in areas:
+    for area in entry.data.get("areas", []):
         area_name = area["name"]
-        entities.append(
-            VentilationEfficiencySensor(coordinator, entry, area_name),
+        entities.extend(
+            [
+                VentilationEfficiencySensor(coordinator, entry, area_name),
+                VentilationAdviceSensor(coordinator, entry, area_name),
+                HumidityDifferenceSensor(coordinator, entry, area_name),
+                TemperatureDifferenceSensor(coordinator, entry, area_name),
+            ]
         )
-        entities.append(
-            VentilationAdviceSensor(coordinator, entry, area_name),
-        )
-        entities.append(
-            HumidityDifferenceSensor(coordinator, entry, area_name),
-        )
-        entities.append(
-            TemperatureDifferenceSensor(coordinator, entry, area_name),
-        )
-
     async_add_entities(entities)
 
 
-class VentilationEfficiencySensor(SensorEntity):
-    """Sensor for ventilation efficiency."""
+def _device_info(entry: ConfigEntry, area_name: str) -> dict:
+    return {
+        "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
+        "name": area_name,
+        "manufacturer": "Smart Ventilation",
+    }
 
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = "mdi:air-filter"
+
+class _AreaSensor(CoordinatorEntity[SmartVentilationCoordinator], SensorEntity):
+    """Base class for all Smart Ventilation area sensors."""
+
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -59,26 +57,47 @@ class VentilationEfficiencySensor(SensorEntity):
         entry: ConfigEntry,
         area_name: str,
     ) -> None:
-        """Initialize the sensor."""
-        self.coordinator = coordinator
-        self.entry = entry
+        super().__init__(coordinator)
         self.area_name = area_name
-        self._attr_unique_id = f"{entry.entry_id}_{area_name}_efficiency"
-        self._attr_name = f"Ventilation Efficiency {area_name}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-            "name": area_name,
-            "manufacturer": "Smart Ventilation",
-            "model": "Ventilation Efficiency",
-        }
+        self._attr_device_info = _device_info(entry, area_name)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.area_name in (self.coordinator.data or {})
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        data = self.coordinator.data.get(self.area_name, {})
+        self._update_from_data(self.coordinator.data.get(self.area_name, {}))
+        self.async_write_ha_state()
+
+    def _update_from_data(self, data: dict) -> None:
+        """Extract entity value from coordinator data. Override in subclasses."""
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
+
+class VentilationEfficiencySensor(_AreaSensor):
+    """Ventilation efficiency as a percentage (0–100%)."""
+
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:air-filter"
+    _attr_translation_key = "ventilation_efficiency"
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+    ) -> None:
+        super().__init__(coordinator, entry, area_name)
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_efficiency"
+
+    def _update_from_data(self, data: dict) -> None:
         efficiency = data.get("efficiency", 0)
         self._attr_native_value = int(efficiency)
-
         if efficiency >= 80:
             self._attr_icon = "mdi:air-filter"
         elif efficiency >= 60:
@@ -88,21 +107,13 @@ class VentilationEfficiencySensor(SensorEntity):
         else:
             self._attr_icon = "mdi:air-humidifier-off"
 
-        self.async_write_ha_state()
 
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
-        self._handle_coordinator_update()
-
-
-class VentilationAdviceSensor(SensorEntity):
-    """Sensor for ventilation advice."""
+class VentilationAdviceSensor(_AreaSensor):
+    """Ventilation advice as an ENUM string."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_options = VENTILATION_ADVICE_LEVELS
+    _attr_translation_key = "ventilation_advice"
 
     def __init__(
         self,
@@ -110,42 +121,20 @@ class VentilationAdviceSensor(SensorEntity):
         entry: ConfigEntry,
         area_name: str,
     ) -> None:
-        """Initialize the sensor."""
-        self.coordinator = coordinator
-        self.entry = entry
-        self.area_name = area_name
+        super().__init__(coordinator, entry, area_name)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_advice"
-        self._attr_name = f"Ventilation Advice {area_name}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-            "name": area_name,
-            "manufacturer": "Smart Ventilation",
-            "model": "Ventilation Advice",
-        }
-        self._attr_options = ["Optimal", "Recommended", "Decent", "Neutral", "Not Recommended"]
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        data = self.coordinator.data.get(self.area_name, {})
+    def _update_from_data(self, data: dict) -> None:
         self._attr_native_value = data.get("advice", "Not Recommended")
-        self.async_write_ha_state()
-
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
-        self._handle_coordinator_update()
 
 
-class HumidityDifferenceSensor(SensorEntity):
-    """Sensor for humidity difference."""
+class HumidityDifferenceSensor(_AreaSensor):
+    """Absolute humidity difference indoor vs outdoor (g/m³)."""
 
-    _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_native_unit_of_measurement = "g/m³"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:water-percent"
+    _attr_translation_key = "humidity_difference"
 
     def __init__(
         self,
@@ -153,41 +142,20 @@ class HumidityDifferenceSensor(SensorEntity):
         entry: ConfigEntry,
         area_name: str,
     ) -> None:
-        """Initialize the sensor."""
-        self.coordinator = coordinator
-        self.entry = entry
-        self.area_name = area_name
+        super().__init__(coordinator, entry, area_name)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_humidity_diff"
-        self._attr_name = f"Humidity Difference {area_name}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-            "name": area_name,
-            "manufacturer": "Smart Ventilation",
-            "model": "Humidity Difference",
-        }
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        data = self.coordinator.data.get(self.area_name, {})
+    def _update_from_data(self, data: dict) -> None:
         self._attr_native_value = data.get("humidity_difference")
-        self.async_write_ha_state()
-
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
-        self._handle_coordinator_update()
 
 
-class TemperatureDifferenceSensor(SensorEntity):
-    """Sensor for temperature difference."""
+class TemperatureDifferenceSensor(_AreaSensor):
+    """Temperature difference indoor vs outdoor (°C)."""
 
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "temperature_difference"
 
     def __init__(
         self,
@@ -195,29 +163,8 @@ class TemperatureDifferenceSensor(SensorEntity):
         entry: ConfigEntry,
         area_name: str,
     ) -> None:
-        """Initialize the sensor."""
-        self.coordinator = coordinator
-        self.entry = entry
-        self.area_name = area_name
+        super().__init__(coordinator, entry, area_name)
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_temperature_diff"
-        self._attr_name = f"Temperature Difference {area_name}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-            "name": area_name,
-            "manufacturer": "Smart Ventilation",
-            "model": "Temperature Difference",
-        }
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        data = self.coordinator.data.get(self.area_name, {})
+    def _update_from_data(self, data: dict) -> None:
         self._attr_native_value = data.get("temperature_difference")
-        self.async_write_ha_state()
-
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
-        self._handle_coordinator_update()
