@@ -59,6 +59,61 @@ def get_advice(efficiency: float) -> str:
     return "Not Recommended"
 
 
+_AIR_QUALITY_LEVELS = ["Excellent", "Good", "Moderate", "Poor", "Unhealthy"]
+
+
+def _co2_category(co2: float) -> int:
+    """Return 0=Excellent … 4=Unhealthy for a CO2 value in ppm."""
+    if co2 <= 800:
+        return 0
+    if co2 <= 1000:
+        return 1
+    if co2 <= 1400:
+        return 2
+    if co2 <= 2000:
+        return 3
+    return 4
+
+
+def _pm25_category(pm25: float) -> int:
+    """Return 0=Excellent … 4=Unhealthy for a PM2.5 value in µg/m³ (WHO 2021)."""
+    if pm25 <= 15:
+        return 0
+    if pm25 <= 25:
+        return 1
+    if pm25 <= 37:
+        return 2
+    if pm25 <= 75:
+        return 3
+    return 4
+
+
+def _humidity_category(rh: float) -> int:
+    """Return 0=Excellent … 4=Unhealthy for indoor relative humidity %."""
+    if 40 <= rh <= 60:
+        return 0
+    if (30 <= rh < 40) or (60 < rh <= 65):
+        return 1
+    if (25 <= rh < 30) or (65 < rh <= 70):
+        return 2
+    if (20 <= rh < 25) or (70 < rh <= 80):
+        return 3
+    return 4
+
+
+def _temperature_category(temp: float) -> int:
+    """Return 0=Excellent … 4=Unhealthy for indoor temperature °C."""
+    if 20 <= temp <= 25:
+        return 0
+    if (18 <= temp < 20) or (25 < temp <= 27):
+        return 1
+    if (16 <= temp < 18) or (27 < temp <= 29):
+        return 2
+    if (14 <= temp < 16) or (29 < temp <= 31):
+        return 3
+    return 4
+
+
 class VentilationCalculator:
     """Calculate ventilation efficiency score (0–100) for a single area."""
 
@@ -231,6 +286,46 @@ class VentilationCalculator:
             reasons.append("Post-shower override active")
 
         return reasons
+
+    def get_air_quality(self) -> dict:
+        """Return room air quality category and per-parameter breakdown.
+
+        Uses worst-parameter-wins: the overall level equals the worst
+        individual parameter. Parameters without a configured sensor are
+        skipped. Returns a dict with keys: level, co2_category,
+        pm25_category, humidity_category, temperature_category,
+        worst_parameter.
+        """
+        scores: dict[str, int] = {}
+        if self.in_co2 is not None:
+            scores["CO2"] = _co2_category(self.in_co2)
+        if self.in_pm25 is not None:
+            scores["PM2.5"] = _pm25_category(self.in_pm25)
+        if self.in_rh is not None:
+            scores["Humidity"] = _humidity_category(self.in_rh)
+        if self.in_temp is not None:
+            scores["Temperature"] = _temperature_category(self.in_temp)
+
+        if not scores:
+            return {
+                "level": _AIR_QUALITY_LEVELS[0],
+                "co2_category": None,
+                "pm25_category": None,
+                "humidity_category": None,
+                "temperature_category": None,
+                "worst_parameter": None,
+            }
+
+        worst_key = max(scores, key=lambda k: scores[k])
+
+        return {
+            "level": _AIR_QUALITY_LEVELS[scores[worst_key]],
+            "co2_category": _AIR_QUALITY_LEVELS[scores["CO2"]] if "CO2" in scores else None,
+            "pm25_category": _AIR_QUALITY_LEVELS[scores["PM2.5"]] if "PM2.5" in scores else None,
+            "humidity_category": _AIR_QUALITY_LEVELS[scores["Humidity"]] if "Humidity" in scores else None,
+            "temperature_category": _AIR_QUALITY_LEVELS[scores["Temperature"]] if "Temperature" in scores else None,
+            "worst_parameter": worst_key,
+        }
 
     # ── Shared helpers ────────────────────────────────────────────────────
 
