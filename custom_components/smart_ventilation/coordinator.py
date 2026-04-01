@@ -70,6 +70,27 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         except (ValueError, TypeError):
             return None
 
+    def _read_wind_ms(self, entity_id: str | None) -> float | None:
+        """Read a wind speed sensor and return the value normalized to m/s.
+
+        Detects the unit_of_measurement attribute and converts km/h → m/s
+        automatically so the calculator always works in m/s regardless of
+        what the sensor reports.
+        """
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in ("unknown", "unavailable"):
+            return None
+        try:
+            value = float(state.state)
+        except (ValueError, TypeError):
+            return None
+        unit = state.attributes.get("unit_of_measurement", "")
+        if unit in ("km/h", "km/u"):
+            return round(value / 3.6, 2)
+        return value
+
     def _get_outdoor_data(self) -> dict[str, float | None]:
         """Read all outdoor sensor states from HA, computing derived values if needed."""
         cfg = self.entry.data
@@ -90,8 +111,8 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "outdoor_dew_point": outdoor_dew,
             "outdoor_temp_max_24h": self._read_state(cfg.get(CONF_OUTDOOR_TEMP_MAX_24H)),
             "outdoor_humidity": outdoor_rh,
-            "wind_avg": self._read_state(cfg.get(CONF_WIND_AVG)),
-            "wind_max": self._read_state(cfg.get(CONF_WIND_MAX)),
+            "wind_avg": self._read_wind_ms(cfg.get(CONF_WIND_AVG)),
+            "wind_max": self._read_wind_ms(cfg.get(CONF_WIND_MAX)),
         }
 
     def _get_area_data(

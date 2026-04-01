@@ -129,9 +129,14 @@ class VentilationCalculator:
     def calculate(self) -> float:
         """Return efficiency score 0–100."""
         if not self._is_valid():
+            # CO2 health override even when other sensor data is invalid
+            if self.in_co2 is not None and self.in_co2 > 1400:
+                return 60.0
             return 0.0
+
         hum_diff = (self.in_hum_abs or 0) - (self.out_hum_abs or 0)
         temp_diff = (self.in_temp or 0) - (self.out_temp or 0)
+
         if self.room_type == "kitchen":
             score = self._score_kitchen(hum_diff, temp_diff)
         elif self.room_type == "bathroom":
@@ -142,6 +147,26 @@ class VentilationCalculator:
             score = self._score_attic()
         else:
             score = self._score_generic(hum_diff, temp_diff)
+
+        # Shared penalties — applied for all room types
+        score += self._outdoor_rh_penalty()
+        if self._condensation_surface_risk():
+            score -= 30
+        score += self._storm_penalty()
+
+        # Bathroom floors (after shared penalties so storm can still override)
+        if self.room_type == "bathroom":
+            if self.in_rh is not None:
+                if self.in_rh >= 80:
+                    score = max(score, 65)
+                elif self.in_rh >= 75 and hum_diff > 0.5:
+                    score = max(score, 45)
+            score = max(score, 20)
+
+        # CO2 health override — always last, overrides everything
+        if self.in_co2 is not None and self.in_co2 > 1400:
+            score = max(score, 60)
+
         return float(max(0, min(100, score)))
 
     def get_reasons(self) -> list[str]:
@@ -166,11 +191,24 @@ class VentilationCalculator:
         if self.out_temp_max is not None and self.out_temp_max < 20 and temp_diff > 5:
             reasons.append("Large temperature difference when it is cold outside")
 
-        if self.wind_avg is not None and self.wind_max is not None:
+        if self._storm_penalty() < 0:
+            reasons.append(
+                f"Storm conditions (wind {self.wind_avg}/{self.wind_max} m/s) — do not open windows"
+            )
+        elif self.wind_avg is not None and self.wind_max is not None:
             if 2 <= self.wind_avg <= 8 and self.wind_max < 12:
                 reasons.append("Favorable wind conditions")
             else:
                 reasons.append("Wind conditions not optimal")
+
+        if self._condensation_surface_risk():
+            reasons.append(
+                f"Condensation risk: indoor dew point ({self.in_dew}°C) "
+                f"above outdoor temperature ({self.out_temp}°C)"
+            )
+
+        if self._outdoor_rh_penalty() < 0:
+            reasons.append(f"Very humid outdoor air ({int(self.out_rh)}% RH) — reduced moisture removal")
 
         if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
             if self.out_temp < self.in_temp - 5:
@@ -181,8 +219,13 @@ class VentilationCalculator:
         if self.out_temp is not None and self.out_temp > 27:
             reasons.append("Outside too hot — ventilation discouraged")
 
-        if self.in_co2 is not None and self.in_co2 > 800:
-            reasons.append(f"Elevated CO₂ ({int(self.in_co2)} ppm)")
+        if self.in_co2 is not None:
+            if self.in_co2 > 1400:
+                reasons.append(f"Dangerous CO₂ level ({int(self.in_co2)} ppm) — health override: ventilate now")
+            elif self.in_co2 > 1200:
+                reasons.append(f"Very high CO₂ ({int(self.in_co2)} ppm) — strong ventilation bonus")
+            elif self.in_co2 > 800:
+                reasons.append(f"Elevated CO₂ ({int(self.in_co2)} ppm) — ventilation bonus")
 
         if self.room_type == "bathroom" and self.in_rh is not None and self.in_rh >= 80:
             reasons.append("Post-shower override active")
@@ -196,6 +239,36 @@ class VentilationCalculator:
             if 2 <= self.wind_avg <= 8 and self.wind_max < 12:
                 return 10
         return 0
+
+    def _storm_penalty(self) -> int:
+        """Return -30 when wind is too strong to safely ventilate."""
+        if self.wind_avg is not None and self.wind_avg > 10:
+            return -30
+        if self.wind_max is not None and self.wind_max > 15:
+            return -30
+        return 0
+
+    def _outdoor_rh_penalty(self) -> int:
+        """Penalty for very humid outdoor air (reduces moisture removal potential)."""
+        if self.out_rh is not None:
+            if self.out_rh > 90:
+                return -20
+            if self.out_rh > 80:
+                return -10
+        return 0
+
+    def _condensation_surface_risk(self) -> bool:
+        """True when indoor dew point exceeds outdoor temperature.
+
+        Ventilating pushes warm moist indoor air towards cold surfaces (glass,
+        frames), causing condensation at the point where the air cools below its
+        dew point.
+        """
+        return (
+            self.in_dew is not None
+            and self.out_temp is not None
+            and self.in_dew > self.out_temp
+        )
 
     def _base_humidity_score(self, hum_diff: float) -> int:
         """Humidity-based starting score shared by generic, bathroom, bedroom."""
@@ -214,7 +287,7 @@ class VentilationCalculator:
             return 40
         if hum_diff > 0:
             return 30
-        return 20
+        return 0
 
     # ── Room-type scoring ─────────────────────────────────────────────────
 
@@ -272,17 +345,6 @@ class VentilationCalculator:
                     s -= 25
                 else:
                     s -= 35
-        if self.out_rh is not None:
-            if self.out_rh > 90:
-                s -= 20
-            elif self.out_rh > 80:
-                s -= 10
-        if self.in_rh is not None:
-            if self.in_rh >= 80:
-                s = max(s, 65)
-            elif self.in_rh >= 75 and hum_diff > 0.5:
-                s = max(s, 45)
-        s = max(s, 20)
         return max(0, min(100, s))
 
     def _score_kitchen(self, hum_diff: float, temp_diff: float) -> int:
@@ -321,31 +383,29 @@ class VentilationCalculator:
         return max(0, min(100, s))
 
     def _score_bedroom(self, hum_diff: float, temp_diff: float) -> int:
-        s = 0
-        # CO2 is the primary signal for bedroom ventilation
+        # Primary goal: reduce indoor humidity
+        s = self._base_humidity_score(hum_diff)
+        # CO2 is a secondary additive bonus
         if self.in_co2 is not None and self.in_co2 > 0:
             if self.in_co2 > 1200:
-                s += 50
+                s += 40
             elif self.in_co2 > 1000:
-                s += 35
-            elif self.in_co2 > 800:
-                s += 20
-            elif self.in_co2 > 600:
-                s += 10
-        # Secondary: humidity
-        if hum_diff > 2 and self.in_rh is not None and self.in_rh > 60:
-            s += 20
-        elif hum_diff > 1:
-            s += 10
-        s += self._wind_bonus()
-        # Cooling bonus: outside meaningfully cooler than inside
-        if self.in_temp is not None and self.out_temp is not None:
-            if self.out_temp < self.in_temp - 5:
                 s += 25
-            elif self.out_temp < self.in_temp - 3:
+            elif self.in_co2 > 800:
                 s += 15
-            elif self.out_temp < self.in_temp:
+            elif self.in_co2 > 600:
                 s += 5
+        s += self._wind_bonus()
+        if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
+            if self.out_temp < self.in_temp - 5:
+                s += 20
+            elif self.out_temp < self.in_temp - 3:
+                s += 10
+            if self.in_heat_index is not None:
+                if self.in_heat_index > 35:
+                    s += 20
+                elif self.in_heat_index > 30:
+                    s += 10
         if self.out_temp is not None and self.out_temp > 27:
             s -= 50
         if self.out_temp_max is not None and self.out_temp_max < 20:
@@ -358,15 +418,26 @@ class VentilationCalculator:
         return max(0, min(100, s))
 
     def _score_attic(self) -> int:
-        s = 0
+        hum_diff = (self.in_hum_abs or 0) - (self.out_hum_abs or 0)
+        temp_diff = (self.in_temp or 0) - (self.out_temp or 0)
+        # Primary goal: reduce indoor humidity
+        s = self._base_humidity_score(hum_diff)
+        # Stronger cooling bonus since attics can get very hot
         if self.in_temp is not None and self.out_temp is not None:
             if self.in_temp > 30 and self.out_temp < self.in_temp - 5:
-                s += 60
+                s += 30
             elif self.in_temp > 27 and self.out_temp < self.in_temp - 3:
-                s += 40
-            elif self.in_temp > 24 and self.out_temp < self.in_temp:
                 s += 20
+            elif self.in_temp > 24 and self.out_temp < self.in_temp:
+                s += 10
         s += self._wind_bonus()
+        if self.out_temp_max is not None and self.out_temp_max < 20:
+            if temp_diff > 7:
+                s -= 30
+            elif temp_diff > 5:
+                s -= 20
+            elif temp_diff > 3:
+                s -= 10
         if self.out_temp is not None and self.out_temp > 27:
             s -= 60
         return max(0, min(100, s))
