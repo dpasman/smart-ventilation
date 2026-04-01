@@ -19,5 +19,7 @@ CONF_OUTDOOR_DEW_POINT = "outdoor_dew_point"
 CONF_OUTDOOR_TEMP_MAX_24H = "outdoor_temperature_max_24h"
 CONF_WIND_AVG = "wind_average"
 CONF_WIND_MAX = "wind_max"
+CONF_OUTDOOR_PM25 = "outdoor_pm25"
 
 VENTILATION_ADVICE_LEVELS = ["Optimal", "Recommended", "Decent", "Neutral", "Not Recommended"]
+AIR_QUALITY_LEVELS = ["Excellent", "Good", "Moderate", "Poor", "Unhealthy"]
