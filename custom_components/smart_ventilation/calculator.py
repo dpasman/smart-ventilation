@@ -327,6 +327,83 @@ class VentilationCalculator:
             "worst_parameter": worst_key,
         }
 
+    def get_ventilation_reason(self) -> str:
+        """Return the primary reason to ventilate or avoid ventilating.
+
+        Negative reasons are checked first (safety > weather > air quality).
+        Positive reasons follow (CO2 > humidity > temperature > general).
+        """
+        # --- Negative reasons ---
+        if self._storm_penalty() < 0:
+            return "Storm warning"
+
+        if (
+            self.out_dew is not None
+            and self.in_temp is not None
+            and self.out_dew >= self.in_temp - 2
+        ):
+            return "Condensation risk"
+
+        if self.out_pm25 is not None and self.out_pm25 > 25:
+            return "Outdoor PM2.5 too high"
+
+        if self.out_temp is not None and self.out_temp > 27:
+            return "Outdoor air too hot"
+
+        if self.out_rh is not None and self.out_rh > 80:
+            return "Outdoor humidity too high"
+
+        temp_diff = (
+            self.in_temp - self.out_temp
+            if self.in_temp is not None and self.out_temp is not None
+            else None
+        )
+        if (
+            self.out_temp_max is not None
+            and self.out_temp_max < 20
+            and temp_diff is not None
+            and temp_diff > 7
+        ):
+            return "Outdoor air too cold"
+
+        # --- Positive reasons ---
+        if self.in_co2 is not None:
+            if self.in_co2 > 1400:
+                return "Dangerously high CO2"
+            if self.in_co2 > 1200:
+                return "High CO2 level"
+            if self.in_co2 > 800:
+                return "Elevated CO2"
+
+        hum_diff = (
+            self.in_hum_abs - self.out_hum_abs
+            if self.in_hum_abs is not None and self.out_hum_abs is not None
+            else None
+        )
+        if (
+            hum_diff is not None
+            and hum_diff > 1.5
+            and self.in_rh is not None
+            and self.in_rh > 55
+        ):
+            return "High indoor humidity"
+
+        if (
+            self.in_temp is not None
+            and self.out_temp is not None
+            and self.in_temp > 24
+            and self.out_temp < self.in_temp - 3
+        ):
+            return "Indoor too warm"
+
+        if hum_diff is not None and hum_diff > 0.5:
+            return "Good ventilation conditions"
+
+        if hum_diff is not None and 0 < hum_diff <= 0.5:
+            return "Conditions balanced"
+
+        return "Good air quality"
+
     # ── Shared helpers ────────────────────────────────────────────────────
 
     def _wind_bonus(self) -> int:
