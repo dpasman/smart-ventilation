@@ -12,7 +12,8 @@
           "outdoor_dew_point": "Outdoor Dew Point (optional, calculated if omitted)",
           "outdoor_temperature_max_24h": "Outdoor Max Temperature 24h (optional)",
           "wind_average": "Wind Average (optional)",
-          "wind_max": "Wind Maximum (optional)"
+          "wind_max": "Wind Maximum (optional)",
+          "outdoor_pm25": "Outdoor PM2.5 (optional)"
         }
       }
     }
@@ -85,6 +86,19 @@
       },
       "temperature_difference": {
         "name": "Temperature Difference"
+      },
+      "air_quality": {
+        "name": "Air Quality",
+        "state": {
+          "Excellent": "Excellent",
+          "Good": "Good",
+          "Moderate": "Moderate",
+          "Poor": "Poor",
+          "Unhealthy": "Unhealthy"
+        }
+      },
+      "ventilation_reason": {
+        "name": "Ventilation Reason"
       }
     },
     "binary_sensor": {
