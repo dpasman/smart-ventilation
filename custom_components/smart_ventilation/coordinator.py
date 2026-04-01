@@ -154,6 +154,9 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
 
         efficiency = calc.calculate()
 
+        air_quality_result = calc.get_air_quality()
+        ventilation_reason = calc.get_ventilation_reason()
+
         cooling_recommended = (
             in_temp is not None
             and out_temp is not None
@@ -180,6 +183,15 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "cooling_recommended": cooling_recommended,
             "indoor_temperature": in_temp,
             "outdoor_temperature": out_temp,
+            "air_quality": air_quality_result["level"],
+            "air_quality_attributes": {
+                "co2_category": air_quality_result["co2_category"],
+                "pm25_category": air_quality_result["pm25_category"],
+                "humidity_category": air_quality_result["humidity_category"],
+                "temperature_category": air_quality_result["temperature_category"],
+                "worst_parameter": air_quality_result["worst_parameter"],
+            },
+            "ventilation_reason": ventilation_reason,
         }
 
     def _detect_room_type(self, area_name: str) -> str:
