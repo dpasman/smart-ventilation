@@ -17,6 +17,7 @@ from .const import (
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
     CONF_OUTDOOR_HUMIDITY,
+    CONF_OUTDOOR_PM25,
     CONF_OUTDOOR_TEMP,
     CONF_OUTDOOR_TEMP_MAX_24H,
     CONF_WIND_AVG,
@@ -92,6 +93,9 @@ class SmartVentilationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         selector.EntitySelectorConfig(domain="sensor"),
                     ),
                     vol.Optional(CONF_WIND_MAX): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor"),
+                    ),
+                    vol.Optional(CONF_OUTDOOR_PM25): selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="sensor"),
                     ),
                 }

@@ -26,6 +26,7 @@ from .const import (
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
     CONF_OUTDOOR_HUMIDITY,
+    CONF_OUTDOOR_PM25,
     CONF_OUTDOOR_TEMP,
     CONF_OUTDOOR_TEMP_MAX_24H,
     CONF_WIND_AVG,
@@ -113,6 +114,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "outdoor_humidity": outdoor_rh,
             "wind_avg": self._read_wind_ms(cfg.get(CONF_WIND_AVG)),
             "wind_max": self._read_wind_ms(cfg.get(CONF_WIND_MAX)),
+            "outdoor_pm25": self._read_state(cfg.get(CONF_OUTDOOR_PM25)),
         }
 
     def _get_area_data(
@@ -146,6 +148,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             wind_avg=outdoor["wind_avg"],
             wind_max=outdoor["wind_max"],
             out_rh=outdoor["outdoor_humidity"],
+            out_pm25=outdoor["outdoor_pm25"],
             room_type=self._detect_room_type(area_config[CONF_AREA_NAME]),
         )
 
