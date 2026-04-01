@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, VENTILATION_ADVICE_LEVELS
+from .const import AIR_QUALITY_LEVELS, DOMAIN, VENTILATION_ADVICE_LEVELS
 from .coordinator import SmartVentilationCoordinator
 
 
@@ -34,6 +34,8 @@ async def async_setup_entry(
                 VentilationAdviceSensor(coordinator, entry, area_name, area_id),
                 HumidityDifferenceSensor(coordinator, entry, area_name, area_id),
                 TemperatureDifferenceSensor(coordinator, entry, area_name, area_id),
+                AirQualitySensor(coordinator, entry, area_name, area_id),
+                VentilationReasonSensor(coordinator, entry, area_name, area_id),
             ]
         )
     async_add_entities(entities)
@@ -176,3 +178,63 @@ class TemperatureDifferenceSensor(_AreaSensor):
 
     def _update_from_data(self, data: dict) -> None:
         self._attr_native_value = data.get("temperature_difference")
+
+
+class AirQualitySensor(_AreaSensor):
+    """Indoor air quality category based on CO2, PM2.5, humidity and temperature."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = AIR_QUALITY_LEVELS
+    _attr_translation_key = "air_quality"
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+        area_id: str | None = None,
+    ) -> None:
+        super().__init__(coordinator, entry, area_name, area_id)
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_air_quality"
+
+    @property
+    def icon(self) -> str:
+        value = self._attr_native_value
+        if value == "Excellent":
+            return "mdi:air-filter"
+        if value == "Good":
+            return "mdi:air-purifier"
+        if value == "Moderate":
+            return "mdi:cloud-alert"
+        return "mdi:biohazard"
+
+    def _update_from_data(self, data: dict) -> None:
+        self._attr_native_value = data.get("air_quality", "Good")
+        attrs = data.get("air_quality_attributes", {})
+        self._attr_extra_state_attributes = {
+            "co2_category": attrs.get("co2_category"),
+            "pm25_category": attrs.get("pm25_category"),
+            "humidity_category": attrs.get("humidity_category"),
+            "temperature_category": attrs.get("temperature_category"),
+            "worst_parameter": attrs.get("worst_parameter"),
+        }
+
+
+class VentilationReasonSensor(_AreaSensor):
+    """Primary reason to ventilate or avoid ventilating."""
+
+    _attr_icon = "mdi:chat-question"
+    _attr_translation_key = "ventilation_reason"
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+        area_id: str | None = None,
+    ) -> None:
+        super().__init__(coordinator, entry, area_name, area_id)
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_ventilation_reason"
+
+    def _update_from_data(self, data: dict) -> None:
+        self._attr_native_value = data.get("ventilation_reason", "Good air quality")
