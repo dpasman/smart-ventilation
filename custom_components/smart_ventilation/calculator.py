@@ -341,7 +341,7 @@ class VentilationCalculator:
         ):
             return "Condensation risk"
 
-        if self.out_pm25 is not None and self.out_pm25 > 25:
+        if self.out_pm25 is not None and self.out_pm25 > 100:
             return "Outdoor PM2.5 too high"
 
         if self.out_temp is not None and self.out_temp > 27:
