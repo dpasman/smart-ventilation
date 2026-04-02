@@ -243,9 +243,6 @@ class VentilationCalculator:
         else:
             reasons.append("No effective moisture removal")
 
-        if self.out_temp_max is not None and self.out_temp_max < 20 and temp_diff > 5:
-            reasons.append("Large temperature difference when it is cold outside")
-
         if self._storm_penalty() < 0:
             reasons.append(
                 f"Storm conditions (wind {self.wind_avg}/{self.wind_max} m/s) — do not open windows"
@@ -465,13 +462,6 @@ class VentilationCalculator:
 
     def _score_generic(self, hum_diff: float, temp_diff: float) -> int:
         s = self._base_humidity_score(hum_diff)
-        if self.out_temp_max is not None and self.out_temp_max < 20:
-            if temp_diff > 10:
-                s -= 30
-            elif temp_diff > 7:
-                s -= 20
-            elif temp_diff > 5:
-                s -= 10
         s += self._wind_bonus()
         if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
             if self.out_temp < self.in_temp - 5:
@@ -489,13 +479,6 @@ class VentilationCalculator:
 
     def _score_bathroom(self, hum_diff: float, temp_diff: float) -> int:
         s = self._base_humidity_score(hum_diff)
-        if self.out_temp_max is not None and self.out_temp_max < 20:
-            if temp_diff > 7:
-                s -= 30
-            elif temp_diff > 5:
-                s -= 20
-            elif temp_diff > 3:
-                s -= 10
         s += self._wind_bonus()
         if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
             if self.out_temp < self.in_temp - 5:
@@ -535,7 +518,7 @@ class VentilationCalculator:
         if self.in_pm25 is not None and self.out_pm25 is not None:
             if self.out_pm25 < self.in_pm25:
                 s += 10
-            elif self.out_pm25 > 20:
+            elif self.out_pm25 > 100:
                 s -= 20
         if self.in_heat_index is not None:
             if self.in_heat_index > 35:
@@ -550,8 +533,6 @@ class VentilationCalculator:
             s -= 50
         if self.in_dew is not None and self.in_temp is not None and self.in_dew > self.in_temp - 1:
             s -= 40
-        if self.out_temp_max is not None and self.out_temp_max < 20 and temp_diff > 3:
-            s -= int(max(0, min(30, (temp_diff - 3) * 5)))
         return max(0, min(100, s))
 
     def _score_bedroom(self, hum_diff: float, temp_diff: float) -> int:
@@ -580,13 +561,6 @@ class VentilationCalculator:
                     s += 10
         if self.out_temp is not None and self.out_temp > 27:
             s -= 50
-        if self.out_temp_max is not None and self.out_temp_max < 20:
-            if temp_diff > 10:
-                s -= 30
-            elif temp_diff > 7:
-                s -= 20
-            elif temp_diff > 5:
-                s -= 10
         return max(0, min(100, s))
 
     def _score_attic(self) -> int:

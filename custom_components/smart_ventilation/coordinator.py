@@ -145,10 +145,10 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             in_heat_index=in_heat_index,
             in_co2=self._read_state(area_config.get(CONF_INDOOR_CO2)),
             in_pm25=self._read_state(area_config.get(CONF_INDOOR_PM25)),
+            out_pm25=outdoor["outdoor_pm25"],
             wind_avg=outdoor["wind_avg"],
             wind_max=outdoor["wind_max"],
             out_rh=outdoor["outdoor_humidity"],
-            out_pm25=outdoor["outdoor_pm25"],
             room_type=self._detect_room_type(area_config[CONF_AREA_NAME]),
         )
 
