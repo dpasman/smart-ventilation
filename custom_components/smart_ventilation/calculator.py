@@ -102,16 +102,15 @@ def _humidity_category(rh: float) -> int:
 
 
 def _temperature_category(temp: float) -> int:
-    """Return 0=Excellent … 4=Unhealthy for indoor temperature °C."""
+    """Return 0=Excellent … 2=Moderate for indoor temperature °C.
+
+    Temperature never contributes Poor or Unhealthy to the air quality score.
+    """
     if 20 <= temp <= 25:
         return 0
     if (18 <= temp < 20) or (25 < temp <= 27):
         return 1
-    if (16 <= temp < 18) or (27 < temp <= 29):
-        return 2
-    if (14 <= temp < 16) or (29 < temp <= 31):
-        return 3
-    return 4
+    return 2
 
 
 class VentilationCalculator:
