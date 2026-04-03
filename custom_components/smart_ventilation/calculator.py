@@ -284,42 +284,64 @@ class VentilationCalculator:
         return reasons
 
     def get_air_quality(self) -> dict:
-        """Return room air quality category and per-parameter breakdown.
+        """Return air quality based on CO2 and PM2.5 only.
 
-        Uses worst-parameter-wins: the overall level equals the worst
-        individual parameter. Parameters without a configured sensor are
-        skipped. Returns a dict with keys: level, co2_category,
-        pm25_category, humidity_category, temperature_category,
-        worst_parameter.
+        Uses worst-parameter-wins. Returns available=False when neither
+        sensor is configured so the entity can be skipped entirely.
         """
         scores: dict[str, int] = {}
         if self.in_co2 is not None:
             scores["CO2"] = _co2_category(self.in_co2)
         if self.in_pm25 is not None:
             scores["PM2.5"] = _pm25_category(self.in_pm25)
-        if self.in_rh is not None:
-            scores["Humidity"] = _humidity_category(self.in_rh)
-        if self.in_temp is not None:
-            scores["Temperature"] = _temperature_category(self.in_temp)
 
         if not scores:
             return {
+                "available": False,
                 "level": _AIR_QUALITY_LEVELS[0],
                 "co2_category": None,
                 "pm25_category": None,
-                "humidity_category": None,
-                "temperature_category": None,
                 "worst_parameter": None,
             }
 
         worst_key = max(scores, key=lambda k: scores[k])
 
         return {
+            "available": True,
             "level": _AIR_QUALITY_LEVELS[scores[worst_key]],
             "co2_category": _AIR_QUALITY_LEVELS[scores["CO2"]] if "CO2" in scores else None,
             "pm25_category": _AIR_QUALITY_LEVELS[scores["PM2.5"]] if "PM2.5" in scores else None,
-            "humidity_category": _AIR_QUALITY_LEVELS[scores["Humidity"]] if "Humidity" in scores else None,
+            "worst_parameter": worst_key,
+        }
+
+    def get_comfort(self) -> dict:
+        """Return comfort level based on indoor temperature and humidity.
+
+        Uses worst-parameter-wins. Returns available=False when neither
+        sensor is configured.
+        """
+        scores: dict[str, int] = {}
+        if self.in_temp is not None:
+            scores["Temperature"] = _temperature_category(self.in_temp)
+        if self.in_rh is not None:
+            scores["Humidity"] = _humidity_category(self.in_rh)
+
+        if not scores:
+            return {
+                "available": False,
+                "level": _AIR_QUALITY_LEVELS[0],
+                "temperature_category": None,
+                "humidity_category": None,
+                "worst_parameter": None,
+            }
+
+        worst_key = max(scores, key=lambda k: scores[k])
+
+        return {
+            "available": True,
+            "level": _AIR_QUALITY_LEVELS[scores[worst_key]],
             "temperature_category": _AIR_QUALITY_LEVELS[scores["Temperature"]] if "Temperature" in scores else None,
+            "humidity_category": _AIR_QUALITY_LEVELS[scores["Humidity"]] if "Humidity" in scores else None,
             "worst_parameter": worst_key,
         }
 

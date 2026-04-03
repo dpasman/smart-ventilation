@@ -155,6 +155,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         efficiency = calc.calculate()
 
         air_quality_result = calc.get_air_quality()
+        comfort_result = calc.get_comfort()
         ventilation_reason = calc.get_ventilation_reason()
 
         cooling_recommended = (
@@ -184,12 +185,18 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "indoor_temperature": in_temp,
             "outdoor_temperature": out_temp,
             "air_quality": air_quality_result["level"],
+            "air_quality_available": air_quality_result["available"],
             "air_quality_attributes": {
                 "co2_category": air_quality_result["co2_category"],
                 "pm25_category": air_quality_result["pm25_category"],
-                "humidity_category": air_quality_result["humidity_category"],
-                "temperature_category": air_quality_result["temperature_category"],
                 "worst_parameter": air_quality_result["worst_parameter"],
+            },
+            "comfort": comfort_result["level"],
+            "comfort_available": comfort_result["available"],
+            "comfort_attributes": {
+                "temperature_category": comfort_result["temperature_category"],
+                "humidity_category": comfort_result["humidity_category"],
+                "worst_parameter": comfort_result["worst_parameter"],
             },
             "ventilation_reason": ventilation_reason,
         }

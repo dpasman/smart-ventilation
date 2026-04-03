@@ -97,6 +97,16 @@
           "Unhealthy": "Unhealthy"
         }
       },
+      "comfort": {
+        "name": "Comfort",
+        "state": {
+          "Excellent": "Excellent",
+          "Good": "Good",
+          "Moderate": "Moderate",
+          "Poor": "Poor",
+          "Unhealthy": "Unhealthy"
+        }
+      },
       "ventilation_reason": {
         "name": "Ventilation Reason"
       }
