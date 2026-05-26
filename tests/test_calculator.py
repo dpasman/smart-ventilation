@@ -98,7 +98,7 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Condensation risk"
 
     def test_outdoor_pm25_too_high(self):
-        c = _calc(out_pm25=30.0)
+        c = _calc(out_pm25=105.0)
         assert c.get_ventilation_reason() == "Outdoor PM2.5 too high"
 
     def test_outdoor_air_too_hot(self):
@@ -106,12 +106,13 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Outdoor air too hot"
 
     def test_outdoor_humidity_too_high(self):
-        c = _calc(out_rh=85.0)
+        # Dry inside (negative hum_diff) so no positive reason fires first
+        c = _calc(in_temp=21.0, in_rh=45.0, out_hum_abs=9.0, out_rh=85.0)
         assert c.get_ventilation_reason() == "Outdoor humidity too high"
 
     def test_outdoor_air_too_cold(self):
-        # temp_diff > 7 and out_temp_max < 20
-        c = _calc(in_temp=24.0, out_temp=15.0, out_temp_max=18.0)
+        # temp_diff > 7 and out_temp_max < 20; minimal hum_diff so no positive reason fires
+        c = _calc(in_temp=24.0, in_rh=44.0, out_temp=15.0, out_hum_abs=9.5, out_temp_max=18.0)
         assert c.get_ventilation_reason() == "Outdoor air too cold"
 
     def test_dangerously_high_co2(self):
@@ -138,9 +139,9 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Indoor too warm"
 
     def test_good_ventilation_conditions(self):
-        # in_rh=55 (not > 55), small positive hum_diff > 0.5
-        # in_hum_abs at 21°C, 55% ≈ 10.8; out_hum_abs=8.0 → diff ≈ 2.8 > 0.5
-        c = _calc(in_temp=21.0, in_rh=55.0, out_temp=15.0, out_hum_abs=8.0)
+        # in_rh=54 (below >=55 threshold so High indoor humidity doesn't fire), hum_diff ≈ 2.6 > 0.5
+        # in_hum_abs at 21°C, 54% ≈ 10.6; out_hum_abs=8.0 → diff ≈ 2.6
+        c = _calc(in_temp=21.0, in_rh=54.0, out_temp=15.0, out_hum_abs=8.0)
         assert c.get_ventilation_reason() == "Good ventilation conditions"
 
     def test_good_air_quality_fallback(self):

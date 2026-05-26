@@ -169,7 +169,7 @@ class VentilationCalculator:
             self.in_heat_index = in_heat_index
 
     def _is_valid(self) -> bool:
-        """Return False if required sensor data is missing or condensation risk is present."""
+        """Return False if required sensor data is missing, or outdoor air is too humid to ventilate."""
         if any(
             v is None
             for v in [self.in_temp, self.in_rh, self.out_temp, self.out_hum_abs, self.in_hum_abs]
@@ -204,8 +204,6 @@ class VentilationCalculator:
 
         # Shared penalties — applied for all room types
         score += self._outdoor_rh_penalty()
-        if self._condensation_surface_risk():
-            score -= 30
         score += self._storm_penalty()
 
         # Bathroom floors (after shared penalties so storm can still override)
@@ -231,10 +229,12 @@ class VentilationCalculator:
         hum_diff = (self.in_hum_abs or 0) - (self.out_hum_abs or 0)
         temp_diff = (self.in_temp or 0) - (self.out_temp or 0)
 
-        if hum_diff > 3 and self.in_rh and self.in_rh > 60:
+        if hum_diff > 3 and self.in_rh and self.in_rh >= 60:
             reasons.append("High moisture removal potential")
-        elif hum_diff > 1.5 and self.in_rh and self.in_rh > 55:
+        elif hum_diff > 2 and self.in_rh and self.in_rh >= 55:
             reasons.append("Good moisture removal")
+        elif hum_diff > 1.5 and self.in_rh and self.in_rh >= 55:
+            reasons.append("Decent moisture removal")
         elif hum_diff > 0.5:
             reasons.append("Moderate moisture removal")
         elif hum_diff > 0:
@@ -261,13 +261,18 @@ class VentilationCalculator:
         if self._outdoor_rh_penalty() < 0:
             reasons.append(f"Very humid outdoor air ({int(self.out_rh)}% RH) — reduced moisture removal")
 
-        if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
-            if self.out_temp < self.in_temp - 5:
-                reasons.append("Outside much cooler — strong cooling potential")
-            elif self.out_temp < self.in_temp - 3:
-                reasons.append("Outside cooler — cooling possible")
+        cooling = self._cooling_bonus()
+        if cooling >= 30:
+            reasons.append("Outside much cooler — strong cooling potential")
+        elif cooling >= 20:
+            reasons.append("Outside cooler — good cooling potential")
+        elif cooling >= 10:
+            reasons.append("Outside cooler — cooling possible")
+        elif cooling > 0:
+            reasons.append("Outside slightly cooler — some cooling benefit")
 
-        if self.out_temp is not None and self.out_temp > 27:
+        if (self.out_temp is not None and self.out_temp > 27
+                and (self.in_temp is None or self.out_temp >= self.in_temp)):
             reasons.append("Outside too hot — ventilation discouraged")
 
         if self.in_co2 is not None:
@@ -348,12 +353,15 @@ class VentilationCalculator:
     def get_ventilation_reason(self) -> str:
         """Return the primary reason to ventilate or avoid ventilating.
 
-        Negative reasons are checked first (safety > weather > air quality).
-        Positive reasons follow (CO2 > humidity > temperature > general).
+        Order: safety blockers → hard outdoor blockers → positive reasons →
+        soft outdoor warnings (only shown when no positive reason applies).
         """
-        # --- Negative reasons ---
+        # --- Safety blockers (always first) ---
         if self._storm_penalty() < 0:
             return "Storm warning"
+
+        if self.in_co2 is not None and self.in_co2 > 1400:
+            return "Dangerously high CO2"
 
         if (
             self.out_dew is not None
@@ -362,12 +370,46 @@ class VentilationCalculator:
         ):
             return "Condensation risk"
 
+        # --- Hard outdoor conditions ---
         if self.out_pm25 is not None and self.out_pm25 > 100:
             return "Outdoor PM2.5 too high"
 
-        if self.out_temp is not None and self.out_temp > 27:
+        if (self.out_temp is not None and self.out_temp > 27
+                and (self.in_temp is None or self.out_temp >= self.in_temp)):
             return "Outdoor air too hot"
 
+        # --- Positive reasons ---
+        if self.in_co2 is not None:
+            if self.in_co2 > 1200:
+                return "High CO2 level"
+            if self.in_co2 > 800:
+                return "Elevated CO2"
+
+        hum_diff = (
+            self.in_hum_abs - self.out_hum_abs
+            if self.in_hum_abs is not None and self.out_hum_abs is not None
+            else None
+        )
+        if (
+            hum_diff is not None
+            and hum_diff > 1.5
+            and self.in_rh is not None
+            and self.in_rh >= 55
+        ):
+            return "High indoor humidity"
+
+        if (
+            self.in_temp is not None
+            and self.out_temp is not None
+            and self.in_temp > 24
+            and self.out_temp < self.in_temp - 3
+        ):
+            return "Indoor too warm"
+
+        if hum_diff is not None and hum_diff > 0.5:
+            return "Good ventilation conditions"
+
+        # --- Soft outdoor warnings (only when no positive reason applies) ---
         if self.out_rh is not None and self.out_rh > 80:
             return "Outdoor humidity too high"
 
@@ -383,39 +425,6 @@ class VentilationCalculator:
             and temp_diff > 7
         ):
             return "Outdoor air too cold"
-
-        # --- Positive reasons ---
-        if self.in_co2 is not None:
-            if self.in_co2 > 1400:
-                return "Dangerously high CO2"
-            if self.in_co2 > 1200:
-                return "High CO2 level"
-            if self.in_co2 > 800:
-                return "Elevated CO2"
-
-        hum_diff = (
-            self.in_hum_abs - self.out_hum_abs
-            if self.in_hum_abs is not None and self.out_hum_abs is not None
-            else None
-        )
-        if (
-            hum_diff is not None
-            and hum_diff > 1.5
-            and self.in_rh is not None
-            and self.in_rh > 55
-        ):
-            return "High indoor humidity"
-
-        if (
-            self.in_temp is not None
-            and self.out_temp is not None
-            and self.in_temp > 24
-            and self.out_temp < self.in_temp - 3
-        ):
-            return "Indoor too warm"
-
-        if hum_diff is not None and hum_diff > 0.5:
-            return "Good ventilation conditions"
 
         if hum_diff is not None and 0 < hum_diff <= 0.5:
             return "Conditions balanced"
@@ -447,6 +456,45 @@ class VentilationCalculator:
                 return -10
         return 0
 
+    def _cooling_bonus(self) -> int:
+        """Return a cooling bonus based on how much cooler it is outside vs inside.
+
+        The bonus scales with indoor temperature: on hot days (27°C+) even a 2°C
+        difference justifies ventilation, and larger differences earn more points.
+        Below 25°C indoor the bonus is small and only kicks in at 3°C difference.
+        """
+        if self.in_temp is None or self.out_temp is None:
+            return 0
+        td = self.in_temp - self.out_temp
+        if td <= 0:
+            return 0
+        if self.in_temp >= 27:
+            if td >= 6: return 40
+            if td >= 4: return 30
+            if td >= 2: return 20
+            return 10
+        if self.in_temp >= 25:
+            if td >= 5: return 30
+            if td >= 3: return 20
+            if td >= 1: return 10
+            return 5
+        if self.in_temp > 24:
+            if td >= 5: return 20
+            if td >= 3: return 10
+        return 0
+
+    def _hot_outdoor_penalty(self, penalty: int = -50) -> int:
+        """Return penalty when outdoor air is hot AND at least as warm as indoors.
+
+        No penalty when outside > 27°C but still cooler than inside — that air
+        still provides cooling and humidity relief despite being warm.
+        """
+        if self.out_temp is None or self.out_temp <= 27:
+            return 0
+        if self.in_temp is None or self.out_temp >= self.in_temp:
+            return penalty
+        return 0
+
     def _condensation_surface_risk(self) -> bool:
         """True when indoor dew point exceeds outdoor temperature.
 
@@ -463,15 +511,15 @@ class VentilationCalculator:
     def _base_humidity_score(self, hum_diff: float) -> int:
         """Humidity-based starting score shared by generic, bathroom, bedroom."""
         in_rh = self.in_rh
-        if hum_diff > 3 and in_rh and in_rh > 60:
+        if hum_diff > 3 and in_rh and in_rh >= 60:
             return 100
-        if hum_diff > 2.5 and in_rh and in_rh > 55:
+        if hum_diff > 2.5 and in_rh and in_rh >= 55:
             return 90
-        if hum_diff > 2 and in_rh and in_rh > 55:
+        if hum_diff > 2 and in_rh and in_rh >= 55:
             return 80
-        if hum_diff > 1.5 and in_rh and in_rh > 55:
+        if hum_diff > 1.5 and in_rh and in_rh >= 55:
             return 70
-        if hum_diff > 1.0 and in_rh and in_rh > 55:
+        if hum_diff > 1.0 and in_rh and in_rh >= 55:
             return 60
         if hum_diff > 0.5:
             return 40
@@ -484,35 +532,25 @@ class VentilationCalculator:
     def _score_generic(self, hum_diff: float, temp_diff: float) -> int:
         s = self._base_humidity_score(hum_diff)
         s += self._wind_bonus()
-        if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
-            if self.out_temp < self.in_temp - 5:
+        s += self._cooling_bonus()
+        if self.in_heat_index is not None and self.in_temp is not None and self.in_temp > 24:
+            if self.in_heat_index > 35:
                 s += 20
-            elif self.out_temp < self.in_temp - 3:
+            elif self.in_heat_index > 30:
                 s += 10
-            if self.in_heat_index is not None:
-                if self.in_heat_index > 35:
-                    s += 20
-                elif self.in_heat_index > 30:
-                    s += 10
-        if self.out_temp is not None and self.out_temp > 27:
-            s -= 50
+        s += self._hot_outdoor_penalty()
         return max(0, min(100, s))
 
     def _score_bathroom(self, hum_diff: float, temp_diff: float) -> int:
         s = self._base_humidity_score(hum_diff)
         s += self._wind_bonus()
-        if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
-            if self.out_temp < self.in_temp - 5:
+        s += self._cooling_bonus()
+        if self.in_heat_index is not None and self.in_temp is not None and self.in_temp > 24:
+            if self.in_heat_index > 35:
                 s += 20
-            elif self.out_temp < self.in_temp - 3:
+            elif self.in_heat_index > 30:
                 s += 10
-            if self.in_heat_index is not None:
-                if self.in_heat_index > 35:
-                    s += 20
-                elif self.in_heat_index > 30:
-                    s += 10
-        if self.out_temp is not None and self.out_temp > 27:
-            s -= 50
+        s += self._hot_outdoor_penalty()
         if self.out_dew is not None and self.in_dew is not None:
             if self.out_dew >= self.in_dew - 0.5:
                 if hum_diff > 2:
@@ -547,11 +585,8 @@ class VentilationCalculator:
             elif self.in_heat_index > 30:
                 s += 10
         s += self._wind_bonus()
-        if self.in_temp is not None and self.out_temp is not None:
-            if self.in_temp > 24 and self.out_temp < self.in_temp - 3:
-                s += int(max(0, min(20, (temp_diff - 3) * 5)))
-        if self.out_temp is not None and self.out_temp > 27:
-            s -= 50
+        s += self._cooling_bonus()
+        s += self._hot_outdoor_penalty()
         if self.in_dew is not None and self.in_temp is not None and self.in_dew > self.in_temp - 1:
             s -= 40
         return max(0, min(100, s))
@@ -570,18 +605,13 @@ class VentilationCalculator:
             elif self.in_co2 > 600:
                 s += 5
         s += self._wind_bonus()
-        if self.in_temp is not None and self.in_temp > 24 and self.out_temp is not None:
-            if self.out_temp < self.in_temp - 5:
+        s += self._cooling_bonus()
+        if self.in_heat_index is not None and self.in_temp is not None and self.in_temp > 24:
+            if self.in_heat_index > 35:
                 s += 20
-            elif self.out_temp < self.in_temp - 3:
+            elif self.in_heat_index > 30:
                 s += 10
-            if self.in_heat_index is not None:
-                if self.in_heat_index > 35:
-                    s += 20
-                elif self.in_heat_index > 30:
-                    s += 10
-        if self.out_temp is not None and self.out_temp > 27:
-            s -= 50
+        s += self._hot_outdoor_penalty()
         return max(0, min(100, s))
 
     def _score_attic(self) -> int:
@@ -605,6 +635,5 @@ class VentilationCalculator:
                 s -= 20
             elif temp_diff > 3:
                 s -= 10
-        if self.out_temp is not None and self.out_temp > 27:
-            s -= 60
+        s += self._hot_outdoor_penalty(-60)
         return max(0, min(100, s))
