@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
 from datetime import timedelta
 from typing import Any
 
@@ -49,6 +50,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             update_interval=timedelta(minutes=1),
         )
         self.entry = entry
+        self._efficiency_history: dict[str, deque[float]] = {}
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch sensor states and calculate data for all configured areas."""
@@ -152,7 +154,9 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             room_type=self._detect_room_type(area_config[CONF_AREA_NAME]),
         )
 
-        efficiency = calc.calculate()
+        efficiency = self._smooth_efficiency(
+            area_config[CONF_AREA_NAME], calc.calculate()
+        )
 
         air_quality_result = calc.get_air_quality()
         comfort_result = calc.get_comfort()
@@ -162,8 +166,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             in_temp is not None
             and out_temp is not None
             and in_temp > 23
-            and out_temp < in_temp
-            and efficiency > 30
+            and out_temp < in_temp - 1.5
         )
 
         humidity_diff = None
@@ -200,6 +203,12 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             },
             "ventilation_reason": ventilation_reason,
         }
+
+    def _smooth_efficiency(self, area_name: str, raw: float) -> float:
+        """3-reading rolling average to dampen sensor noise."""
+        history = self._efficiency_history.setdefault(area_name, deque(maxlen=3))
+        history.append(raw)
+        return round(sum(history) / len(history), 1)
 
     def _detect_room_type(self, area_name: str) -> str:
         """Infer room type from area name (English + Dutch keywords)."""
