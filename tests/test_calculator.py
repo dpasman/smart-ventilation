@@ -145,10 +145,22 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Good ventilation conditions"
 
     def test_good_air_quality_fallback(self):
-        # hum_diff ≤ 0: out_hum_abs > in_hum_abs
-        # in_hum_abs at 21°C, 40% ≈ 7.9; out_hum_abs=10.0 → diff = -2.1 ≤ 0
-        c = _calc(in_temp=21.0, in_rh=40.0, out_hum_abs=10.0)
+        # hum_diff clearly negative (< -1.0): out_hum_abs >> in_hum_abs, no cooling either
+        # in_hum_abs at 21°C, 40% ≈ 7.9; out_hum_abs=10.0 → diff = -2.1
+        c = _calc(in_temp=21.0, in_rh=40.0, out_hum_abs=10.0, out_temp=20.0)
         assert c.get_ventilation_reason() == "Good air quality"
+
+    def test_cooling_conditions_favorable(self):
+        # hum_diff in [-1.0, 0] and outdoor meaningfully cooler: should return cooling reason
+        # in_hum_abs at 21°C, 50% ≈ 9.2; out_hum_abs=9.7 → diff ≈ -0.5 (near-neutral)
+        c = _calc(in_temp=21.0, in_rh=50.0, out_temp=17.0, out_hum_abs=9.7)
+        assert c.get_ventilation_reason() == "Cooling conditions favorable"
+
+    def test_near_neutral_humidity_can_reach_recommended(self):
+        # hum_diff ≈ -0.5 (near-neutral) + wind + cooling should give ≥ 60
+        c = _calc(in_temp=21.0, in_rh=50.0, out_temp=17.0, out_hum_abs=9.7,
+                  wind_avg=3.0, wind_max=7.0)
+        assert c.calculate() >= 60
 
     def test_conditions_balanced(self):
         # hum_diff between 0 and 0.5

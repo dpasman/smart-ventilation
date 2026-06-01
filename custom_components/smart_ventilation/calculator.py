@@ -409,6 +409,16 @@ class VentilationCalculator:
         if hum_diff is not None and hum_diff > 0.5:
             return "Good ventilation conditions"
 
+        if (
+            self.in_temp is not None
+            and self.out_temp is not None
+            and self.in_temp >= 20
+            and self.out_temp < self.in_temp - 2
+            and hum_diff is not None
+            and -1.0 <= hum_diff <= 0
+        ):
+            return "Cooling conditions favorable"
+
         # --- Soft outdoor warnings (only when no positive reason applies) ---
         if self.out_rh is not None and self.out_rh > 80:
             return "Outdoor humidity too high"
@@ -478,9 +488,10 @@ class VentilationCalculator:
             if td >= 3: return 20
             if td >= 1: return 10
             return 5
-        if self.in_temp > 24:
-            if td >= 5: return 20
-            if td >= 3: return 10
+        if self.in_temp >= 20:
+            if td >= 5: return 25
+            if td >= 3: return 20
+            if td >= 1: return 10
         return 0
 
     def _hot_outdoor_penalty(self, penalty: int = -50) -> int:
@@ -523,8 +534,10 @@ class VentilationCalculator:
             return 60
         if hum_diff > 0.5:
             return 40
-        if hum_diff > 0:
+        if hum_diff >= -0.5:
             return 30
+        if hum_diff >= -1.0:
+            return 10
         return 0
 
     # ── Room-type scoring ─────────────────────────────────────────────────
@@ -627,6 +640,8 @@ class VentilationCalculator:
                 s += 20
             elif self.in_temp > 24 and self.out_temp < self.in_temp:
                 s += 10
+            elif self.in_temp >= 20 and self.out_temp < self.in_temp - 2:
+                s += 20
         s += self._wind_bonus()
         if self.out_temp_max is not None and self.out_temp_max < 20:
             if temp_diff > 7:
