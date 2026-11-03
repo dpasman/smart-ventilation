@@ -19,14 +19,15 @@ def _calc(**kwargs) -> VentilationCalculator:
 # ── get_air_quality ───────────────────────────────────────────────────────────
 
 class TestGetAirQuality:
+    """get_air_quality() covers CO2 and PM2.5 only — see TestGetComfort for
+    temperature/humidity, which live on the separate get_comfort() method."""
+
     def test_excellent_all_parameters(self):
         c = _calc(in_temp=22.0, in_rh=50.0, in_co2=700.0, in_pm25=10.0)
         result = c.get_air_quality()
         assert result["level"] == "Excellent"
         assert result["co2_category"] == "Excellent"
         assert result["pm25_category"] == "Excellent"
-        assert result["humidity_category"] == "Excellent"
-        assert result["temperature_category"] == "Excellent"
 
     def test_worst_parameter_wins(self):
         # CO2 is Poor, everything else is Excellent
@@ -41,35 +42,14 @@ class TestGetAirQuality:
         assert result["level"] == "Unhealthy"
         assert result["worst_parameter"] == "PM2.5"
 
-    def test_humidity_too_low_is_poor(self):
-        c = _calc(in_temp=22.0, in_rh=22.0)
-        result = c.get_air_quality()
-        assert result["humidity_category"] == "Poor"
-
-    def test_humidity_too_high_is_moderate(self):
-        c = _calc(in_temp=22.0, in_rh=68.0)
-        result = c.get_air_quality()
-        assert result["humidity_category"] == "Moderate"
-
-    def test_temperature_too_hot_is_moderate(self):
-        c = _calc(in_temp=28.5, in_rh=50.0)
-        result = c.get_air_quality()
-        assert result["temperature_category"] == "Moderate"
-
-    def test_temperature_too_cold_is_poor(self):
-        c = _calc(in_temp=15.0, in_rh=50.0)
-        result = c.get_air_quality()
-        assert result["temperature_category"] == "Poor"
-
-    def test_no_optional_sensors_returns_level_from_available(self):
-        # Only in_temp and in_rh available (no CO2, no PM2.5) — excellent temp+humidity
+    def test_no_optional_sensors_returns_unavailable(self):
+        # Only in_temp and in_rh available (no CO2, no PM2.5) — air quality
+        # has nothing to score, so the entity should be skipped entirely.
         c = _calc(in_temp=22.0, in_rh=50.0)
         result = c.get_air_quality()
-        assert result["level"] == "Excellent"
+        assert result["available"] is False
         assert result["co2_category"] is None
         assert result["pm25_category"] is None
-        assert result["humidity_category"] == "Excellent"
-        assert result["temperature_category"] == "Excellent"
 
     def test_co2_thresholds(self):
         assert _calc(in_co2=800.0).get_air_quality()["co2_category"] == "Excellent"
@@ -84,6 +64,39 @@ class TestGetAirQuality:
         assert _calc(in_pm25=26.0).get_air_quality()["pm25_category"] == "Moderate"
         assert _calc(in_pm25=38.0).get_air_quality()["pm25_category"] == "Poor"
         assert _calc(in_pm25=76.0).get_air_quality()["pm25_category"] == "Unhealthy"
+
+
+class TestGetComfort:
+    """get_comfort() covers indoor temperature and humidity only."""
+
+    def test_excellent_all_parameters(self):
+        c = _calc(in_temp=22.0, in_rh=50.0)
+        result = c.get_comfort()
+        assert result["level"] == "Excellent"
+        assert result["humidity_category"] == "Excellent"
+        assert result["temperature_category"] == "Excellent"
+
+    def test_humidity_too_low_is_poor(self):
+        c = _calc(in_temp=22.0, in_rh=22.0)
+        result = c.get_comfort()
+        assert result["humidity_category"] == "Poor"
+
+    def test_humidity_too_high_is_moderate(self):
+        c = _calc(in_temp=22.0, in_rh=68.0)
+        result = c.get_comfort()
+        assert result["humidity_category"] == "Moderate"
+
+    def test_temperature_too_hot_is_moderate(self):
+        c = _calc(in_temp=28.5, in_rh=50.0)
+        result = c.get_comfort()
+        assert result["temperature_category"] == "Moderate"
+
+    def test_temperature_too_cold_is_moderate(self):
+        # Temperature is capped at "Moderate" by design — it never
+        # contributes "Poor"/"Unhealthy" to the comfort score.
+        c = _calc(in_temp=15.0, in_rh=50.0)
+        result = c.get_comfort()
+        assert result["temperature_category"] == "Moderate"
 
 
 class TestGetVentilationReason:
@@ -106,8 +119,9 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Outdoor air too hot"
 
     def test_outdoor_humidity_too_high(self):
-        # Dry inside (negative hum_diff) so no positive reason fires first
-        c = _calc(in_temp=21.0, in_rh=45.0, out_hum_abs=9.0, out_rh=85.0)
+        # Dry inside (hum_diff clearly below the -1.0 "cooling favorable"
+        # band) and not hot outside, so no positive reason fires first
+        c = _calc(in_temp=21.0, in_rh=40.0, out_temp=20.0, out_hum_abs=10.0, out_rh=85.0)
         assert c.get_ventilation_reason() == "Outdoor humidity too high"
 
     def test_outdoor_air_too_cold(self):
@@ -157,10 +171,19 @@ class TestGetVentilationReason:
         assert c.get_ventilation_reason() == "Cooling conditions favorable"
 
     def test_near_neutral_humidity_can_reach_recommended(self):
-        # hum_diff ≈ -0.5 (near-neutral) + wind + cooling should give ≥ 60
-        c = _calc(in_temp=21.0, in_rh=50.0, out_temp=17.0, out_hum_abs=9.7,
+        # hum_diff ≈ -0.44 (inside the >= -0.5 "near-neutral" bucket) + wind
+        # + cooling should give ≥ 60
+        c = _calc(in_temp=21.0, in_rh=50.0, out_temp=17.0, out_hum_abs=9.6,
                   wind_avg=3.0, wind_max=7.0)
         assert c.calculate() >= 60
+
+    def test_base_humidity_score_cliff_at_minus_half(self):
+        # Pins the exact -0.5 bucket boundary so a rounding drift in future
+        # changes can't silently fall into the wrong bucket again.
+        just_inside = _calc(in_temp=21.0, in_rh=50.0, out_hum_abs=9.6)  # hum_diff ≈ -0.44
+        just_outside = _calc(in_temp=21.0, in_rh=50.0, out_hum_abs=9.7)  # hum_diff ≈ -0.54
+        assert just_inside._base_humidity_score(-0.44) == 30
+        assert just_outside._base_humidity_score(-0.54) == 10
 
     def test_conditions_balanced(self):
         # hum_diff between 0 and 0.5

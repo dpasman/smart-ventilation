@@ -125,6 +125,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             or self.config_entry.data.get("areas", [])
         )
 
+    def _write_options(self, patch: dict) -> ConfigFlowResult:
+        """Create an options entry, preserving every existing top-level key.
+
+        async_create_entry's `data` REPLACES entry.options wholesale, so any
+        call site that only passes e.g. {"areas": areas} would silently wipe
+        "settings"/"_runtime" the moment those keys exist. Always go through
+        this helper instead of calling async_create_entry directly.
+        """
+        return self.async_create_entry(
+            title="", data={**self.config_entry.options, **patch}
+        )
+
     def _resolve_area(self, area_id: str) -> str:
         """Return the human-readable area name from the HA area registry."""
         entry = ar.async_get(self.hass).async_get_area(area_id)
@@ -181,7 +193,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             area_data = {**user_input, CONF_AREA_NAME: area_name, "area_id": area_id}
             areas = self._get_areas()
             areas.append(area_data)
-            return self.async_create_entry(title="", data={"areas": areas})
+            return self._write_options({"areas": areas})
 
         return self.async_show_form(step_id="add_area", data_schema=_area_schema())
 
@@ -229,7 +241,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             new_areas = [
                 area_data if a[CONF_AREA_NAME] == editing_name else a for a in areas
             ]
-            return self.async_create_entry(title="", data={"areas": new_areas})
+            return self._write_options({"areas": new_areas})
 
         suggested: dict = {}
         if current:
@@ -255,7 +267,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             area_name = user_input.get("area_to_remove")
             new_areas = [a for a in areas if a[CONF_AREA_NAME] != area_name]
-            return self.async_create_entry(title="", data={"areas": new_areas})
+            return self._write_options({"areas": new_areas})
 
         return self.async_show_form(
             step_id="remove_area",
