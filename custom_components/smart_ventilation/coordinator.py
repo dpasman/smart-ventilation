@@ -351,6 +351,51 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         if notify_patch != notify_state:
             self.runtime.save_area_state(area_name, {"notify": notify_patch})
 
+    async def async_send_recommendation_now(self, area_name: str) -> None:
+        """Send the current recommendation for one area immediately.
+
+        Bypasses the notification stability window, cooldown, and quiet
+        hours — an explicit user action, not an ambient one. Still runs
+        actuation through the normal actuator.async_maybe_actuate() path
+        (hold/lockout and confirmation-required both still apply there;
+        this button is a notification-noise bypass, not a safety bypass).
+        """
+        await self.async_request_refresh()
+        data = (self.data or {}).get(area_name)
+        if data is None:
+            return
+        areas = self.entry.options.get("areas") or self.entry.data.get("areas", [])
+        area_config = next((a for a in areas if a[CONF_AREA_NAME] == area_name), None)
+        if area_config is None:
+            return
+
+        action = data["action"]
+        reason = data["ventilation_reason"]
+        severity = classify_severity(data["efficiency"])
+        signature = build_signature(area_name, action, reason)
+        now = dt_util.now()
+
+        message = f"{area_name}: {action} — {reason}"
+        sent = await self.notifier.async_send_advisory(area_name, message, severity)
+        if sent:
+            notify_state = self.runtime.area_state(area_name)["notify"]
+            self.runtime.save_area_state(
+                area_name,
+                {
+                    "notify": {
+                        **notify_state,
+                        "last_signature": signature,
+                        "last_reason": reason,
+                        "last_severity": severity,
+                        "last_notified_at": now.isoformat(),
+                    }
+                },
+            )
+
+        await actuator.async_maybe_actuate(
+            self.hass, area_config, self.runtime, self.notifier, action, data["action_override"], now
+        )
+
     def _smooth_efficiency(self, area_name: str, raw: float) -> float:
         """3-reading rolling average to dampen sensor noise."""
         history = self._efficiency_history.setdefault(area_name, deque(maxlen=3))

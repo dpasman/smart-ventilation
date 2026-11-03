@@ -11,7 +11,7 @@ from .coordinator import SmartVentilationCoordinator
 from .notification import NotificationManager
 from .runtime import RuntimeStore
 
-PLATFORMS = ["sensor", "binary_sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "number", "time", "switch", "button"]
 
 
 def _get_areas(entry: ConfigEntry) -> list:
@@ -45,11 +45,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def _cleanup_stale_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove devices for areas that no longer exist."""
+    """Remove devices for areas that no longer exist.
+
+    Keeps the integration-level global-settings device (identified by the
+    entry_id alone, see entity_helpers.global_device_info) — it isn't tied
+    to any area, so it would otherwise never appear in current_ids and get
+    deleted on every setup.
+    """
     areas = _get_areas(entry)
     current_ids = {
         (DOMAIN, f"{entry.entry_id}_{area[CONF_AREA_NAME]}") for area in areas
     }
+    current_ids.add((DOMAIN, entry.entry_id))
     device_reg = dr.async_get(hass)
     for device in dr.async_entries_for_config_entry(device_reg, entry.entry_id):
         if not device.identifiers & current_ids:

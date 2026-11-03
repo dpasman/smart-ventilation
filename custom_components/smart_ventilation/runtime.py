@@ -122,6 +122,17 @@ class RuntimeStore:
         self._suppress_next_reload = True
         self._async_update_options({SETTINGS_KEY: {**self.settings, **patch}})
 
+    def save_areas(self, areas: list[dict[str, Any]]) -> None:
+        """Persist a full replacement area list without a full reload.
+
+        For a live per-area field toggle (e.g. the confirmation-required
+        switch) that changes no entity's existence — unlike the options
+        flow's add/edit/remove-area steps, which must still trigger a real
+        reload since those add or remove entities.
+        """
+        self._suppress_next_reload = True
+        self._async_update_options({"areas": areas})
+
     def save_area_state(self, area_name: str, patch: dict[str, Any]) -> None:
         """Persist a partial update to one area's runtime state.
 

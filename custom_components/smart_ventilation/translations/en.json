@@ -124,6 +124,41 @@
       "cooling_recommended": {
         "name": "Cooling by Ventilation Recommended"
       }
+    },
+    "number": {
+      "notification_cooldown_minutes": {
+        "name": "Notification Cooldown"
+      },
+      "stability_window_minutes": {
+        "name": "Notification Stability Window"
+      }
+    },
+    "time": {
+      "quiet_hours_start": {
+        "name": "Quiet Hours Start"
+      },
+      "quiet_hours_end": {
+        "name": "Quiet Hours End"
+      }
+    },
+    "switch": {
+      "notifications_enabled": {
+        "name": "Notifications Enabled"
+      },
+      "quiet_hours_enabled": {
+        "name": "Quiet Hours Enabled"
+      },
+      "debug_mode": {
+        "name": "Debug Mode"
+      },
+      "confirmation_required": {
+        "name": "Require Confirmation Before Acting"
+      }
+    },
+    "button": {
+      "send_recommendation_now": {
+        "name": "Send Recommendation Now"
+      }
     }
   }
 }

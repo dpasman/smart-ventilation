@@ -15,3 +15,13 @@ def device_info(entry: ConfigEntry, area_name: str, area_id: str | None = None) 
         "manufacturer": "Smart Ventilation",
         "suggested_area": area_name,
     }
+
+
+def global_device_info(entry: ConfigEntry) -> dict:
+    """Return the device-registry info dict for the integration-level
+    device that global (non-area) settings entities attach to."""
+    return {
+        "identifiers": {(DOMAIN, entry.entry_id)},
+        "name": "Smart Ventilation",
+        "manufacturer": "Smart Ventilation",
+    }
