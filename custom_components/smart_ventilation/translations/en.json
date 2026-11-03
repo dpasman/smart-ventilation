@@ -38,7 +38,13 @@
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
           "indoor_co2": "Indoor CO2 (optional)",
-          "indoor_pm25": "Indoor PM2.5 (optional)"
+          "indoor_pm25": "Indoor PM2.5 (optional)",
+          "start_entity_id": "Open Automation (optional)",
+          "stop_entity_id": "Close Automation (optional)",
+          "window_sensor_entity_ids": "Window Sensors (optional)",
+          "action_hold_minutes": "Action Hold (minutes)",
+          "action_lockout_minutes": "Action Lockout (minutes)",
+          "confirmation_required": "Require Confirmation Before Acting"
         }
       },
       "edit_area_select": {
@@ -55,13 +61,36 @@
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
           "indoor_co2": "Indoor CO2 (optional)",
-          "indoor_pm25": "Indoor PM2.5 (optional)"
+          "indoor_pm25": "Indoor PM2.5 (optional)",
+          "start_entity_id": "Open Automation (optional)",
+          "stop_entity_id": "Close Automation (optional)",
+          "window_sensor_entity_ids": "Window Sensors (optional)",
+          "action_hold_minutes": "Action Hold (minutes)",
+          "action_lockout_minutes": "Action Lockout (minutes)",
+          "confirmation_required": "Require Confirmation Before Acting"
         }
       },
       "remove_area": {
         "title": "Remove Area",
         "data": {
           "area_to_remove": "Select Area to Remove"
+        }
+      },
+      "global_settings": {
+        "title": "Global Settings",
+        "description": "Weather awareness, notifications, and quiet hours — shared across all areas.",
+        "data": {
+          "weather_entity_id": "Weather Entity (optional)",
+          "notification_device_ids": "Notification Devices (optional)",
+          "notifications_enabled": "Notifications Enabled",
+          "quiet_hours_enabled": "Quiet Hours Enabled",
+          "quiet_hours_start": "Quiet Hours Start",
+          "quiet_hours_end": "Quiet Hours End",
+          "notification_cooldown_minutes": "Notification Cooldown (minutes)",
+          "stability_window_minutes": "Notification Stability Window (minutes)",
+          "season_bias": "Season Bias",
+          "diagnostic_notification_level": "Diagnostic Notification Level",
+          "debug_mode": "Debug Mode"
         }
       }
     }
