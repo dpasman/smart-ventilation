@@ -25,6 +25,7 @@ class _FakeConfigEntries:
 class _FakeEntry:
     def __init__(self, options=None):
         self.options = options or {}
+        self.entry_id = "test_entry"
 
 
 def _make_coordinator():

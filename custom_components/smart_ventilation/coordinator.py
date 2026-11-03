@@ -52,6 +52,7 @@ from .const import (
     DOMAIN,
 )
 from .debounce import SignalDebouncer
+from .diagnostics_monitor import is_area_misconfigured, sync_notification
 from .notification_rules import build_signature, classify_severity, is_quiet_hours, should_notify
 from .weather import WeatherSignal, async_get_weather_signal
 
@@ -282,6 +283,10 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         area_name = area_config[CONF_AREA_NAME]
         action = data["action"]
         is_override = data["action_override"]
+
+        sync_notification(
+            self.hass, self.entry, area_name, is_area_misconfigured(area_config, settings)
+        )
 
         await actuator.async_maybe_actuate(
             self.hass, area_config, self.runtime, self.notifier, action, is_override, now
