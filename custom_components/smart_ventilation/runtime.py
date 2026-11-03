@@ -31,9 +31,15 @@ DEFAULT_AREA_RUNTIME: dict[str, Any] = {
         "lockout_until": None,
     },
     "notify": {
-        "last_signature": None,
+        # SignalDebouncer state for the notification stability window —
+        # distinct from the marker below, which tracks what was last
+        # actually SENT (updated only on a successful send, gated further
+        # by cooldown/severity), not what the debouncer has settled on.
         "pending_signature": None,
         "pending_since": None,
+        "stable_signature": None,
+        # Marker: the last notification actually sent for this area.
+        "last_signature": None,
         "last_reason": None,
         "last_severity": None,
         "last_notified_at": None,

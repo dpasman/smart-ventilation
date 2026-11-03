@@ -8,6 +8,7 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import CONF_AREA_NAME, CONF_OUTDOOR_TEMP, DOMAIN
 from .coordinator import SmartVentilationCoordinator
+from .notification import NotificationManager
 from .runtime import RuntimeStore
 
 PLATFORMS = ["sensor", "binary_sensor"]
@@ -24,10 +25,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     coordinator = SmartVentilationCoordinator(hass, entry)
-    # Attached before the first refresh (not after): _async_update_data reads
-    # coordinator.runtime.settings on every poll, including the first one.
+    # Both attached before the first refresh (not after): _async_update_data
+    # reads coordinator.runtime.settings and calls coordinator.notifier on
+    # every poll, including the first one.
     coordinator.runtime = RuntimeStore(hass, entry)
     coordinator.runtime.ensure_defaults()
+    coordinator.notifier = NotificationManager(hass, entry, coordinator.runtime)
+    entry.async_on_unload(coordinator.notifier.async_setup())
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
