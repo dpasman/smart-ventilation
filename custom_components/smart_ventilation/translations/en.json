@@ -109,6 +109,15 @@
       },
       "ventilation_reason": {
         "name": "Ventilation Reason"
+      },
+      "ventilation_action": {
+        "name": "Ventilation Action",
+        "state": {
+          "OPEN": "Open",
+          "CLOSE": "Close",
+          "VENTILATE": "Ventilate briefly",
+          "NONE": "No action"
+        }
       }
     },
     "binary_sensor": {

@@ -10,7 +10,9 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
+from .action import derive_action
 from .calculator import (
     VentilationCalculator,
     calculate_absolute_humidity,
@@ -30,10 +32,14 @@ from .const import (
     CONF_OUTDOOR_PM25,
     CONF_OUTDOOR_TEMP,
     CONF_OUTDOOR_TEMP_MAX_24H,
+    CONF_SEASON_BIAS,
+    CONF_WEATHER_ENTITY,
     CONF_WIND_AVG,
     CONF_WIND_MAX,
+    DEFAULT_SEASON_BIAS,
     DOMAIN,
 )
+from .weather import WeatherSignal, async_get_weather_signal
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,13 +57,21 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         )
         self.entry = entry
         self._efficiency_history: dict[str, deque[float]] = {}
+        # Set by __init__.py's async_setup_entry before the first refresh —
+        # declared here only so attribute access below type-checks cleanly.
+        self.runtime = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch sensor states and calculate data for all configured areas."""
         outdoor = self._get_outdoor_data()
+        settings = self.runtime.settings
+        weather_signal = await async_get_weather_signal(
+            self.hass, settings.get(CONF_WEATHER_ENTITY)
+        )
         areas = self.entry.options.get("areas") or self.entry.data.get("areas", [])
+        now = dt_util.now()
         return {
-            area[CONF_AREA_NAME]: self._get_area_data(area, outdoor)
+            area[CONF_AREA_NAME]: self._get_area_data(area, outdoor, weather_signal, settings, now)
             for area in areas
         }
 
@@ -120,7 +134,12 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         }
 
     def _get_area_data(
-        self, area_config: dict, outdoor: dict[str, float | None]
+        self,
+        area_config: dict,
+        outdoor: dict[str, float | None],
+        weather_signal: WeatherSignal | None,
+        settings: dict[str, Any],
+        now,
     ) -> dict[str, Any]:
         """Read area sensor states, run calculator, return result dict."""
         in_temp = self._read_state(area_config.get(CONF_INDOOR_TEMP))
@@ -152,6 +171,8 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             wind_max=outdoor["wind_max"],
             out_rh=outdoor["outdoor_humidity"],
             room_type=self._detect_room_type(area_config[CONF_AREA_NAME]),
+            weather_block=weather_signal.block if weather_signal else False,
+            weather_caution=weather_signal.caution if weather_signal else False,
         )
 
         efficiency = self._smooth_efficiency(
@@ -161,6 +182,12 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         air_quality_result = calc.get_air_quality()
         comfort_result = calc.get_comfort()
         ventilation_reason = calc.get_ventilation_reason()
+        action, action_override = derive_action(
+            efficiency,
+            calc.get_action_signals(),
+            settings.get(CONF_SEASON_BIAS, DEFAULT_SEASON_BIAS),
+            now=now,
+        )
 
         cooling_recommended = (
             in_temp is not None
@@ -202,6 +229,9 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                 "worst_parameter": comfort_result["worst_parameter"],
             },
             "ventilation_reason": ventilation_reason,
+            "action": action,
+            "action_override": action_override,
+            "weather_condition": weather_signal.condition if weather_signal else None,
         }
 
     def _smooth_efficiency(self, area_name: str, raw: float) -> float:

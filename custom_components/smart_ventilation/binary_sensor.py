@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SmartVentilationCoordinator
+from .entity_helpers import device_info as _device_info
 
 
 async def async_setup_entry(
@@ -44,12 +45,7 @@ class CoolingRecommendedBinarySensor(
         super().__init__(coordinator)
         self.area_name = area_name
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_cooling_recommended"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-            "name": area_name,
-            "manufacturer": "Smart Ventilation",
-            "suggested_area": area_name,
-        }
+        self._attr_device_info = _device_info(entry, area_name, area_id)
 
     @property
     def available(self) -> bool:
