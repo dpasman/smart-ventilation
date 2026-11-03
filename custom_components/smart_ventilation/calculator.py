@@ -134,6 +134,8 @@ class VentilationCalculator:
         wind_max: float | None = None,
         out_rh: float | None = None,
         room_type: str = "generic",
+        weather_block: bool = False,
+        weather_caution: bool = False,
     ) -> None:
         self.in_temp = in_temp
         self.in_rh = in_rh
@@ -148,6 +150,8 @@ class VentilationCalculator:
         self.wind_max = wind_max
         self.out_rh = out_rh
         self.room_type = room_type
+        self.weather_block = weather_block
+        self.weather_caution = weather_caution
 
         # Derive optional values when not provided
         if in_temp is not None and in_rh is not None:
@@ -205,6 +209,7 @@ class VentilationCalculator:
         # Shared penalties — applied for all room types
         score += self._outdoor_rh_penalty()
         score += self._storm_penalty()
+        score = self._weather_penalty(score)
 
         # Bathroom floors (after shared penalties so storm can still override)
         if self.room_type == "bathroom":
@@ -251,6 +256,11 @@ class VentilationCalculator:
                 reasons.append("Favorable wind conditions")
             else:
                 reasons.append("Wind conditions not optimal")
+
+        if self.weather_block:
+            reasons.append("Adverse weather conditions — do not open windows")
+        elif self.weather_caution:
+            reasons.append("Weather conditions deteriorating soon — ventilate briefly if needed")
 
         if self._condensation_surface_risk():
             reasons.append(
@@ -350,6 +360,24 @@ class VentilationCalculator:
             "worst_parameter": worst_key,
         }
 
+    def get_action_signals(self) -> dict:
+        """Return the boolean/scalar signals `action.derive_action()` acts on.
+
+        The single place that reaches into this calculator's otherwise
+        underscored internals, so action-derivation logic never has to know
+        about _storm_penalty()/_condensation_surface_risk()/etc. directly.
+        """
+        efficiency = self.calculate()
+        return {
+            "storm": self._storm_penalty() < 0,
+            "condensation_risk": self._condensation_surface_risk(),
+            "co2_override": self.in_co2 is not None and self.in_co2 > 1400,
+            "weather_block": self.weather_block,
+            "weather_caution": self.weather_caution,
+            "efficiency": efficiency,
+            "advice": get_advice(efficiency),
+        }
+
     def get_ventilation_reason(self) -> str:
         """Return the primary reason to ventilate or avoid ventilating.
 
@@ -359,6 +387,9 @@ class VentilationCalculator:
         # --- Safety blockers (always first) ---
         if self._storm_penalty() < 0:
             return "Storm warning"
+
+        if self.weather_block:
+            return "Adverse weather"
 
         if self.in_co2 is not None and self.in_co2 > 1400:
             return "Dangerously high CO2"
@@ -420,6 +451,9 @@ class VentilationCalculator:
             return "Cooling conditions favorable"
 
         # --- Soft outdoor warnings (only when no positive reason applies) ---
+        if self.weather_caution:
+            return "Weather conditions deteriorating soon"
+
         if self.out_rh is not None and self.out_rh > 80:
             return "Outdoor humidity too high"
 
@@ -456,6 +490,22 @@ class VentilationCalculator:
         if self.wind_max is not None and self.wind_max > 15:
             return -30
         return 0
+
+    def _weather_penalty(self, score: float) -> float:
+        """Apply the current/forecast weather condition to a score.
+
+        Mirrors _storm_penalty() in spirit (adverse weather is a safety/
+        practicality concern like high wind) but blocking conditions
+        (thunderstorm, heavy rain/snow incoming) cap the score low rather
+        than subtracting a fixed amount, since "it's about to pour" should
+        dominate regardless of how favorable the humidity/temperature
+        numbers currently look.
+        """
+        if self.weather_block:
+            return min(score, 15)
+        if self.weather_caution:
+            return score - 15
+        return score
 
     def _outdoor_rh_penalty(self) -> int:
         """Penalty for very humid outdoor air (reduces moisture removal potential)."""

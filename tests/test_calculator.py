@@ -190,3 +190,45 @@ class TestGetVentilationReason:
         # in_hum_abs at 21°C, 43% = 7.88; out_hum_abs=7.58 → diff ≈ 0.3
         c = _calc(in_temp=21.0, in_rh=43.0, out_hum_abs=7.58)
         assert c.get_ventilation_reason() == "Conditions balanced"
+
+
+class TestWeatherSignals:
+    def test_weather_block_is_top_priority_after_storm(self):
+        # Even with excellent humidity removal potential, adverse weather wins
+        c = _calc(in_temp=22.0, in_rh=65.0, out_hum_abs=3.0, weather_block=True)
+        assert c.get_ventilation_reason() == "Adverse weather"
+
+    def test_storm_outranks_weather_block(self):
+        c = _calc(wind_avg=12.0, wind_max=18.0, weather_block=True)
+        assert c.get_ventilation_reason() == "Storm warning"
+
+    def test_weather_block_caps_score_low(self):
+        # Would otherwise score very high (large hum_diff, high in_rh)
+        c = _calc(in_temp=22.0, in_rh=65.0, out_hum_abs=3.0, weather_block=True)
+        assert c.calculate() <= 15
+
+    def test_weather_caution_reduces_score(self):
+        c_clear = _calc(in_temp=21.0, in_rh=50.0, out_temp=15.0, out_hum_abs=7.0)
+        c_caution = _calc(in_temp=21.0, in_rh=50.0, out_temp=15.0, out_hum_abs=7.0, weather_caution=True)
+        assert c_caution.calculate() == c_clear.calculate() - 15
+
+    def test_weather_caution_is_soft_warning_after_positive_reasons(self):
+        # A clear positive reason (high indoor humidity) still wins over the
+        # soft weather_caution warning, which only fires as a fallback.
+        c = _calc(in_temp=22.0, in_rh=65.0, out_hum_abs=3.0, weather_caution=True)
+        assert c.get_ventilation_reason() == "High indoor humidity"
+
+    def test_weather_caution_fires_as_fallback_when_no_positive_reason(self):
+        # Dry inside, no positive reason, weather caution should surface
+        # before the generic "Good air quality" fallback
+        c = _calc(in_temp=21.0, in_rh=40.0, out_temp=20.0, out_hum_abs=10.0, weather_caution=True)
+        assert c.get_ventilation_reason() == "Weather conditions deteriorating soon"
+
+    def test_get_action_signals_shape(self):
+        c = _calc(in_co2=1500.0, weather_block=True)
+        signals = c.get_action_signals()
+        assert signals["co2_override"] is True
+        assert signals["weather_block"] is True
+        assert signals["weather_caution"] is False
+        assert signals["storm"] is False
+        assert "efficiency" in signals and "advice" in signals
