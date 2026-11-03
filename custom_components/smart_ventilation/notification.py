@@ -39,7 +39,7 @@ class NotificationManager:
         self.hass = hass
         self.entry = entry
         self.runtime = runtime
-        # token -> {"area_name": str, "action": str, "resolved": bool}
+        # token -> {"area_name": str, "action": str, "on_resolved": Callable}
         self._pending: dict[str, dict[str, Any]] = {}
         self._bus_unsub: Callable[[], None] | None = None
 
@@ -73,8 +73,20 @@ class NotificationManager:
                 _LOGGER.warning("Smart Ventilation: notify.%s failed", service, exc_info=True)
         return sent
 
-    async def async_send_confirmation_request(self, area_name: str, action: str, message: str) -> str | None:
-        """Send an actionable confirmation notification; returns the token, or None if undeliverable."""
+    async def async_send_confirmation_request(
+        self,
+        area_name: str,
+        action: str,
+        message: str,
+        on_resolved: Callable[[bool], Any],
+    ) -> str | None:
+        """Send an actionable confirmation notification; returns the token, or None if undeliverable.
+
+        `on_resolved(confirmed: bool)` is an async callable invoked exactly
+        once — on an explicit Confirm/Dismiss tap, or on TTL expiry (treated
+        as an implicit decline, confirmed=False) — scheduled as a background
+        task, never awaited inline from the bus-event callback.
+        """
         targets = self._notify_targets()
         if not targets:
             return None
@@ -108,23 +120,11 @@ class NotificationManager:
         if not sent:
             return None
 
-        self._pending[token] = {"area_name": area_name, "action": action, "resolved": False}
+        self._pending[token] = {"area_name": area_name, "action": action, "on_resolved": on_resolved}
         async_call_later(
             self.hass, timedelta(minutes=CONFIRMATION_TOKEN_TTL_MINUTES), self._expire(token)
         )
         return token
-
-    def is_confirmed(self, token: str) -> bool | None:
-        """Return True/False once resolved, or None while still pending/unknown."""
-        entry = self._pending.get(token)
-        if entry is None:
-            return None
-        if not entry["resolved"]:
-            return None
-        return entry.get("confirmed", False)
-
-    def discard(self, token: str) -> None:
-        self._pending.pop(token, None)
 
     def _notify_targets(self) -> list[str]:
         """Return configured notify.* service names (without the "notify." prefix).
@@ -158,19 +158,17 @@ class NotificationManager:
             self._resolve(token, confirmed=False)
 
     def _resolve(self, token: str, confirmed: bool) -> None:
-        entry = self._pending.get(token)
-        if entry is None or entry["resolved"]:
+        # pop (not get) so a confirm/dismiss race with the TTL timeout can
+        # only ever invoke on_resolved once.
+        entry = self._pending.pop(token, None)
+        if entry is None:
             return
-        entry["resolved"] = True
-        entry["confirmed"] = confirmed
+        self.hass.async_create_task(entry["on_resolved"](confirmed))
 
     def _expire(self, token: str) -> Callable[[Any], None]:
         @callback
         def _on_timeout(_now: Any) -> None:
-            entry = self._pending.get(token)
-            if entry is not None and not entry["resolved"]:
-                # Timeout is an implicit decline — never actuate on timeout.
-                entry["resolved"] = True
-                entry["confirmed"] = False
+            # Timeout is an implicit decline — never actuate on timeout.
+            self._resolve(token, confirmed=False)
 
         return _on_timeout
