@@ -1,0 +1,193 @@
+{
+  "config": {
+    "title": "Smart Ventilation",
+    "step": {
+      "user": {
+        "title": "Buitensensoren",
+        "description": "Configureer de algemene buitensensoren die voor alle ruimtes worden gebruikt. Absolute luchtvochtigheid en dauwpunt worden automatisch berekend als je relatieve luchtvochtigheid opgeeft.",
+        "data": {
+          "outdoor_temperature": "Buitentemperatuur",
+          "outdoor_humidity": "Relatieve luchtvochtigheid buiten",
+          "outdoor_absolute_humidity": "Absolute luchtvochtigheid buiten (optioneel, berekend indien leeg)",
+          "outdoor_dew_point": "Dauwpunt buiten (optioneel, berekend indien leeg)",
+          "outdoor_temperature_max_24h": "Max. buitentemperatuur 24u (optioneel)",
+          "wind_average": "Gemiddelde windsnelheid (optioneel)",
+          "wind_max": "Maximale windsnelheid (optioneel)",
+          "outdoor_pm25": "PM2.5 buiten (optioneel)"
+        }
+      }
+    }
+  },
+  "options": {
+    "title": "Smart Ventilation",
+    "step": {
+      "init": {
+        "title": "Ruimtes beheren"
+      },
+      "menu": {
+        "title": "Ruimtes beheren",
+        "data": {
+          "action": "Actie"
+        }
+      },
+      "add_area": {
+        "title": "Ruimte toevoegen",
+        "description": "Configureer sensoren voor een nieuwe ruimte. Absolute luchtvochtigheid, dauwpunt en hitte-index worden automatisch berekend uit temperatuur en luchtvochtigheid.",
+        "data": {
+          "name": "Ruimte",
+          "indoor_temperature": "Binnentemperatuur",
+          "indoor_humidity": "Binnenluchtvochtigheid",
+          "indoor_co2": "CO2 binnen (optioneel)",
+          "indoor_pm25": "PM2.5 binnen (optioneel)",
+          "start_entity_id": "Automatisering openen (optioneel)",
+          "stop_entity_id": "Automatisering sluiten (optioneel)",
+          "window_sensor_entity_ids": "Raamsensoren (optioneel)",
+          "action_hold_minutes": "Wachttijd actie (minuten)",
+          "action_lockout_minutes": "Vergrendeling na actie (minuten)",
+          "confirmation_required": "Bevestiging vereist voor actie"
+        }
+      },
+      "edit_area_select": {
+        "title": "Ruimte bewerken",
+        "data": {
+          "area_to_edit": "Selecteer ruimte om te bewerken"
+        }
+      },
+      "edit_area": {
+        "title": "Ruimte bewerken",
+        "description": "Werk de sensoren voor deze ruimte bij.",
+        "data": {
+          "name": "Ruimte",
+          "indoor_temperature": "Binnentemperatuur",
+          "indoor_humidity": "Binnenluchtvochtigheid",
+          "indoor_co2": "CO2 binnen (optioneel)",
+          "indoor_pm25": "PM2.5 binnen (optioneel)",
+          "start_entity_id": "Automatisering openen (optioneel)",
+          "stop_entity_id": "Automatisering sluiten (optioneel)",
+          "window_sensor_entity_ids": "Raamsensoren (optioneel)",
+          "action_hold_minutes": "Wachttijd actie (minuten)",
+          "action_lockout_minutes": "Vergrendeling na actie (minuten)",
+          "confirmation_required": "Bevestiging vereist voor actie"
+        }
+      },
+      "remove_area": {
+        "title": "Ruimte verwijderen",
+        "data": {
+          "area_to_remove": "Selecteer ruimte om te verwijderen"
+        }
+      },
+      "global_settings": {
+        "title": "Algemene instellingen",
+        "description": "Weerbewustzijn, meldingen en nachtmodus — gedeeld door alle ruimtes.",
+        "data": {
+          "weather_entity_id": "Weer-entiteit (optioneel)",
+          "notification_device_ids": "Meldingsapparaten (optioneel)",
+          "notifications_enabled": "Meldingen ingeschakeld",
+          "quiet_hours_enabled": "Nachtmodus ingeschakeld",
+          "quiet_hours_start": "Nachtmodus start",
+          "quiet_hours_end": "Nachtmodus einde",
+          "notification_cooldown_minutes": "Afkoeltijd meldingen (minuten)",
+          "stability_window_minutes": "Stabilisatietijd meldingen (minuten)",
+          "season_bias": "Seizoensvoorkeur",
+          "diagnostic_notification_level": "Diagnostisch meldingsniveau",
+          "debug_mode": "Debug-modus"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ventilation_efficiency": {
+        "name": "Ventilatie-efficiëntie"
+      },
+      "ventilation_advice": {
+        "name": "Ventilatieadvies",
+        "state": {
+          "Optimal": "Optimaal",
+          "Recommended": "Aanbevolen",
+          "Decent": "Redelijk",
+          "Neutral": "Neutraal",
+          "Not Recommended": "Niet aanbevolen"
+        }
+      },
+      "humidity_difference": {
+        "name": "Vochtverschil"
+      },
+      "temperature_difference": {
+        "name": "Temperatuurverschil"
+      },
+      "air_quality": {
+        "name": "Luchtkwaliteit",
+        "state": {
+          "Excellent": "Uitstekend",
+          "Good": "Goed",
+          "Moderate": "Matig",
+          "Poor": "Slecht",
+          "Unhealthy": "Ongezond"
+        }
+      },
+      "comfort": {
+        "name": "Comfort",
+        "state": {
+          "Excellent": "Uitstekend",
+          "Good": "Goed",
+          "Moderate": "Matig",
+          "Poor": "Slecht",
+          "Unhealthy": "Ongezond"
+        }
+      },
+      "ventilation_reason": {
+        "name": "Reden ventilatieadvies"
+      },
+      "ventilation_action": {
+        "name": "Ventilatieactie",
+        "state": {
+          "OPEN": "Openen",
+          "CLOSE": "Sluiten",
+          "VENTILATE": "Kort luchten",
+          "NONE": "Geen actie"
+        }
+      }
+    },
+    "binary_sensor": {
+      "cooling_recommended": {
+        "name": "Koeling via ventilatie aanbevolen"
+      }
+    },
+    "number": {
+      "notification_cooldown_minutes": {
+        "name": "Afkoeltijd meldingen"
+      },
+      "stability_window_minutes": {
+        "name": "Stabilisatietijd meldingen"
+      }
+    },
+    "time": {
+      "quiet_hours_start": {
+        "name": "Nachtmodus start"
+      },
+      "quiet_hours_end": {
+        "name": "Nachtmodus einde"
+      }
+    },
+    "switch": {
+      "notifications_enabled": {
+        "name": "Meldingen ingeschakeld"
+      },
+      "quiet_hours_enabled": {
+        "name": "Nachtmodus ingeschakeld"
+      },
+      "debug_mode": {
+        "name": "Debug-modus"
+      },
+      "confirmation_required": {
+        "name": "Bevestiging vereist voor actie"
+      }
+    },
+    "button": {
+      "send_recommendation_now": {
+        "name": "Stuur advies nu"
+      }
+    }
+  }
+}

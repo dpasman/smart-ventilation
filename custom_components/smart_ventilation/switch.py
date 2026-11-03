@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -93,7 +94,7 @@ class DebugModeSwitch(_SettingsSwitch):
     """Verbose logging / forced debug notifications."""
 
     _attr_icon = "mdi:bug"
-    _attr_entity_category = "diagnostic"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_translation_key = "debug_mode"
     _settings_key = CONF_DEBUG_MODE
     _default = DEFAULT_DEBUG_MODE
