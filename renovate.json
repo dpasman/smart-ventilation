@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Amsterdam",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Group the test-stack bumps (HA core + its pytest harness) together — they move in lockstep and should be reviewed as one PR.",
+      "matchFileNames": ["requirements_test.txt"],
+      "groupName": "test dependencies"
+    },
+    {
+      "description": "GitHub Actions bumps grouped separately from Python deps.",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    }
+  ]
+}
