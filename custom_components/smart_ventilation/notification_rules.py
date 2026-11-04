@@ -76,19 +76,21 @@ def should_notify(
 ) -> tuple[bool, SignalDebouncer]:
     """Return (should_notify, new_debouncer).
 
-    override=True (storm/weather_block/condensation/CO2) sends immediately,
-    bypassing both the stability window and the cooldown — safety-critical
-    and must never be delayed. Otherwise: the signature must first have
-    settled for >= stability_minutes; once settled, a notification is due
-    unless the same signature was already sent within cooldown_minutes,
-    UNLESS severity escalated to "urgent" from something lower.
+    override=True (storm/weather_block/condensation/CO2) only skips the
+    stability wait — a safety-critical FIRST alert must never be delayed
+    10 minutes for the signature to "settle". It does NOT skip the cooldown/
+    marker dedup below: a condition that stays safety-critical for a
+    while (e.g. CO2 sitting above the dangerous threshold for an hour)
+    must not re-notify on every single poll tick forever — once the first
+    alert is out, a persisting override still follows the normal cooldown
+    pacing, same as everything else, unless severity escalates further.
     """
     if override:
-        return True, debouncer
-
-    _, new_debouncer = debouncer.evaluate(signature, now, stability_minutes)
-    if new_debouncer.stable_value != signature:
-        return False, new_debouncer
+        new_debouncer = SignalDebouncer(stable_value=signature)
+    else:
+        _, new_debouncer = debouncer.evaluate(signature, now, stability_minutes)
+        if new_debouncer.stable_value != signature:
+            return False, new_debouncer
 
     if marker is None or marker.get("last_signature") != signature:
         return True, new_debouncer
