@@ -1,6 +1,5 @@
 {
   "config": {
-    "title": "Smart Ventilation",
     "step": {
       "user": {
         "title": "Buitensensoren",
@@ -19,7 +18,6 @@
     }
   },
   "options": {
-    "title": "Smart Ventilation",
     "step": {
       "init": {
         "title": "Ruimtes beheren"
@@ -103,11 +101,11 @@
       "ventilation_advice": {
         "name": "Ventilatieadvies",
         "state": {
-          "Optimal": "Optimaal",
-          "Recommended": "Aanbevolen",
-          "Decent": "Redelijk",
-          "Neutral": "Neutraal",
-          "Not Recommended": "Niet aanbevolen"
+          "optimal": "Optimaal",
+          "recommended": "Aanbevolen",
+          "decent": "Redelijk",
+          "neutral": "Neutraal",
+          "not_recommended": "Niet aanbevolen"
         }
       },
       "humidity_difference": {
@@ -119,21 +117,21 @@
       "air_quality": {
         "name": "Luchtkwaliteit",
         "state": {
-          "Excellent": "Uitstekend",
-          "Good": "Goed",
-          "Moderate": "Matig",
-          "Poor": "Slecht",
-          "Unhealthy": "Ongezond"
+          "excellent": "Uitstekend",
+          "good": "Goed",
+          "moderate": "Matig",
+          "poor": "Slecht",
+          "unhealthy": "Ongezond"
         }
       },
       "comfort": {
         "name": "Comfort",
         "state": {
-          "Excellent": "Uitstekend",
-          "Good": "Goed",
-          "Moderate": "Matig",
-          "Poor": "Slecht",
-          "Unhealthy": "Ongezond"
+          "excellent": "Uitstekend",
+          "good": "Goed",
+          "moderate": "Matig",
+          "poor": "Slecht",
+          "unhealthy": "Ongezond"
         }
       },
       "ventilation_reason": {
@@ -142,10 +140,10 @@
       "ventilation_action": {
         "name": "Ventilatieactie",
         "state": {
-          "OPEN": "Openen",
-          "CLOSE": "Sluiten",
-          "VENTILATE": "Kort luchten",
-          "NONE": "Geen actie"
+          "open": "Openen",
+          "close": "Sluiten",
+          "ventilate": "Kort luchten",
+          "none": "Geen actie"
         }
       }
     },

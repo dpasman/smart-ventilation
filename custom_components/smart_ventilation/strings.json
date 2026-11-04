@@ -1,6 +1,5 @@
 {
   "config": {
-    "title": "Smart Ventilation",
     "step": {
       "user": {
         "title": "Outdoor Sensors",
@@ -19,7 +18,6 @@
     }
   },
   "options": {
-    "title": "Smart Ventilation",
     "step": {
       "init": {
         "title": "Manage Areas"
@@ -103,11 +101,11 @@
       "ventilation_advice": {
         "name": "Ventilation Advice",
         "state": {
-          "Optimal": "Optimal",
-          "Recommended": "Recommended",
-          "Decent": "Decent",
-          "Neutral": "Neutral",
-          "Not Recommended": "Not Recommended"
+          "optimal": "Optimal",
+          "recommended": "Recommended",
+          "decent": "Decent",
+          "neutral": "Neutral",
+          "not_recommended": "Not Recommended"
         }
       },
       "humidity_difference": {
@@ -119,21 +117,21 @@
       "air_quality": {
         "name": "Air Quality",
         "state": {
-          "Excellent": "Excellent",
-          "Good": "Good",
-          "Moderate": "Moderate",
-          "Poor": "Poor",
-          "Unhealthy": "Unhealthy"
+          "excellent": "Excellent",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "unhealthy": "Unhealthy"
         }
       },
       "comfort": {
         "name": "Comfort",
         "state": {
-          "Excellent": "Excellent",
-          "Good": "Good",
-          "Moderate": "Moderate",
-          "Poor": "Poor",
-          "Unhealthy": "Unhealthy"
+          "excellent": "Excellent",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "unhealthy": "Unhealthy"
         }
       },
       "ventilation_reason": {
@@ -142,10 +140,10 @@
       "ventilation_action": {
         "name": "Ventilation Action",
         "state": {
-          "OPEN": "Open",
-          "CLOSE": "Close",
-          "VENTILATE": "Ventilate briefly",
-          "NONE": "No action"
+          "open": "Open",
+          "close": "Close",
+          "ventilate": "Ventilate briefly",
+          "none": "No action"
         }
       }
     },

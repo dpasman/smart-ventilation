@@ -12,6 +12,7 @@ write persisting without forcing a full platform reload.
 from __future__ import annotations
 
 import pytest
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.smart_ventilation.const import DOMAIN
@@ -36,6 +37,22 @@ def _set_sensor_states(hass):
     hass.states.async_set("sensor.keuken_humidity", "50.0", {"unit_of_measurement": "%"})
 
 
+def _efficiency_sensor_state(hass, entry):
+    """Look up the per-area efficiency sensor by its stable unique_id.
+
+    Not by a guessed entity_id slug — HA's area-name-based entity_id
+    generation (single vs. double "keuken" prefix, depending on whether a
+    matching area-registry entry actually exists) turned out to differ
+    between HA-core versions/Python versions, which made a hardcoded
+    entity_id string flaky across the CI matrix. The unique_id this
+    integration sets (sensor.py: f"{entry.entry_id}_{area_name}_efficiency")
+    is entirely our own and stable regardless of that.
+    """
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_keuken_efficiency")
+    return hass.states.get(entity_id) if entity_id else None
+
+
 class TestSetupUnloadRoundtrip:
     async def test_setup_then_unload(self, hass):
         _set_sensor_states(hass)
@@ -48,8 +65,7 @@ class TestSetupUnloadRoundtrip:
         await hass.async_block_till_done()
         assert entry.state.value == "loaded"
 
-        efficiency_state = hass.states.get("sensor.keuken_keuken_ventilation_efficiency")
-        assert efficiency_state is not None
+        assert _efficiency_sensor_state(hass, entry) is not None
 
         assert await hass.config_entries.async_unload(entry.entry_id)
         await hass.async_block_till_done()
@@ -124,7 +140,11 @@ class TestLiveSettingsWriteNoFullReload:
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-        cooldown_entity_id = "number.smart_ventilation_notification_cooldown"
+        registry = er.async_get(hass)
+        cooldown_entity_id = registry.async_get_entity_id(
+            "number", DOMAIN, f"{entry.entry_id}_notification_cooldown_minutes"
+        )
+        assert cooldown_entity_id is not None
         before = hass.states.get(cooldown_entity_id)
         assert before is not None
 
@@ -141,4 +161,4 @@ class TestLiveSettingsWriteNoFullReload:
         # The per-area efficiency sensor must still exist — a full reload
         # would briefly remove and recreate every entity, but should never
         # make this one disappear across the write.
-        assert hass.states.get("sensor.keuken_keuken_ventilation_efficiency") is not None
+        assert _efficiency_sensor_state(hass, entry) is not None

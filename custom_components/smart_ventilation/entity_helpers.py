@@ -25,3 +25,16 @@ def global_device_info(entry: ConfigEntry) -> dict:
         "name": "Smart Ventilation",
         "manufacturer": "Smart Ventilation",
     }
+
+
+def slugify_state(value: str) -> str:
+    """Normalize a human-readable enum value into a valid translation-key
+    state ("Not Recommended" -> "not_recommended").
+
+    HA's enum sensor state translation requires the native_value to match a
+    strings.json state key satisfying [a-z0-9-_]+ — the calculator's
+    internal values ("Optimal", "OPEN", ...) stay as-is everywhere else
+    (tests, action/guard logic) and are only normalized here, at the
+    sensor-entity boundary.
+    """
+    return value.lower().replace(" ", "_")
