@@ -20,12 +20,18 @@
   "options": {
     "step": {
       "init": {
-        "title": "Manage Areas"
+        "title": "Smart Ventilation",
+        "menu_options": {
+          "areas": "Manage Areas",
+          "global_settings": "Global Settings"
+        }
       },
-      "menu": {
+      "areas": {
         "title": "Manage Areas",
-        "data": {
-          "action": "Action"
+        "menu_options": {
+          "add_area": "Add Area",
+          "edit_area_select": "Edit Area",
+          "remove_area": "Remove Area"
         }
       },
       "add_area": {
