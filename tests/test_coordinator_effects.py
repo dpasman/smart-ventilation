@@ -177,3 +177,38 @@ class TestNotificationGating:
             _area_config(), reason_b, DEFAULT_SETTINGS, DAY + timedelta(minutes=30)
         )
         coordinator.notifier.async_send_advisory.assert_not_called()
+
+    async def test_persisting_override_condition_does_not_notify_every_tick(self):
+        # Regression test for the continued-spam report: a safety override
+        # (e.g. CO2 stuck above the dangerous threshold for an hour) used to
+        # bypass the cooldown entirely on every single poll tick (every 1
+        # minute, the coordinator's update_interval) for as long as the
+        # condition persisted. Override should only skip the initial
+        # stability wait — once the first alert is out, a still-persisting
+        # condition must follow the normal cooldown pacing like anything else.
+        coordinator = _make_coordinator()
+        data = _data(action="CLOSE", override=True, efficiency=10.0)
+
+        await coordinator._async_handle_area_effects(_area_config(), data, DEFAULT_SETTINGS, DAY)
+        coordinator.notifier.async_send_advisory.assert_awaited_once()
+        coordinator.notifier.async_send_advisory.reset_mock()
+
+        # One minute later, condition unchanged — must NOT notify again.
+        await coordinator._async_handle_area_effects(
+            _area_config(), data, DEFAULT_SETTINGS, DAY + timedelta(minutes=1)
+        )
+        coordinator.notifier.async_send_advisory.assert_not_called()
+
+        # Several more ticks across the next 10 minutes, still unchanged.
+        for minute in (2, 5, 10):
+            await coordinator._async_handle_area_effects(
+                _area_config(), data, DEFAULT_SETTINGS, DAY + timedelta(minutes=minute)
+            )
+        coordinator.notifier.async_send_advisory.assert_not_called()
+
+        # Cooldown elapses — a reminder while the condition still persists
+        # is correct and expected.
+        await coordinator._async_handle_area_effects(
+            _area_config(), data, DEFAULT_SETTINGS, DAY + timedelta(minutes=61)
+        )
+        coordinator.notifier.async_send_advisory.assert_awaited_once()

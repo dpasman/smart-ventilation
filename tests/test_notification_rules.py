@@ -57,10 +57,52 @@ class TestIsQuietHours:
 
 
 class TestShouldNotify:
-    def test_override_sends_immediately_ignoring_stability_and_cooldown(self):
+    def test_override_sends_immediately_ignoring_stability_window(self):
         d = SignalDebouncer()
         result, _ = should_notify(
             marker=None, signature="sig", severity="urgent", now=T0,
+            cooldown_minutes=COOLDOWN, debouncer=d, stability_minutes=STABILITY, override=True,
+        )
+        assert result is True
+
+    def test_override_still_respects_cooldown_once_a_marker_exists(self):
+        # Regression test: a persisting safety-critical condition (e.g. CO2
+        # stuck above the dangerous threshold) must NOT re-notify on every
+        # single poll tick forever — override only buys skipping the
+        # stability wait for the first alert, not an indefinite cooldown
+        # bypass.
+        marker = {"last_signature": "sig", "last_severity": "urgent", "last_notified_at": T0.isoformat()}
+        d = SignalDebouncer()
+        result, _ = should_notify(
+            marker=marker, signature="sig", severity="urgent", now=T0 + timedelta(minutes=1),
+            cooldown_minutes=COOLDOWN, debouncer=d, stability_minutes=STABILITY, override=True,
+        )
+        assert result is False
+
+    def test_override_bypasses_cooldown_on_further_severity_escalation(self):
+        marker = {"last_signature": "sig", "last_severity": "elevated", "last_notified_at": T0.isoformat()}
+        d = SignalDebouncer()
+        result, _ = should_notify(
+            marker=marker, signature="sig", severity="urgent", now=T0 + timedelta(minutes=1),
+            cooldown_minutes=COOLDOWN, debouncer=d, stability_minutes=STABILITY, override=True,
+        )
+        assert result is True
+
+    def test_override_notifies_again_once_the_normal_cooldown_elapses(self):
+        marker = {"last_signature": "sig", "last_severity": "urgent", "last_notified_at": T0.isoformat()}
+        d = SignalDebouncer()
+        result, _ = should_notify(
+            marker=marker, signature="sig", severity="urgent", now=T0 + timedelta(minutes=COOLDOWN + 1),
+            cooldown_minutes=COOLDOWN, debouncer=d, stability_minutes=STABILITY, override=True,
+        )
+        assert result is True
+
+    def test_override_with_a_changed_signature_notifies_immediately(self):
+        # A storm replacing a CO2 alert, say — genuinely new, no reason to wait.
+        marker = {"last_signature": "old-sig", "last_severity": "urgent", "last_notified_at": T0.isoformat()}
+        d = SignalDebouncer()
+        result, _ = should_notify(
+            marker=marker, signature="new-sig", severity="urgent", now=T0 + timedelta(minutes=1),
             cooldown_minutes=COOLDOWN, debouncer=d, stability_minutes=STABILITY, override=True,
         )
         assert result is True
