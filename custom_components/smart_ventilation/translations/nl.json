@@ -20,12 +20,18 @@
   "options": {
     "step": {
       "init": {
-        "title": "Ruimtes beheren"
+        "title": "Smart Ventilation",
+        "menu_options": {
+          "areas": "Ruimtes beheren",
+          "global_settings": "Algemene instellingen"
+        }
       },
-      "menu": {
+      "areas": {
         "title": "Ruimtes beheren",
-        "data": {
-          "action": "Actie"
+        "menu_options": {
+          "add_area": "Ruimte toevoegen",
+          "edit_area_select": "Ruimte bewerken",
+          "remove_area": "Ruimte verwijderen"
         }
       },
       "add_area": {
@@ -80,6 +86,7 @@
         "data": {
           "weather_entity_id": "Weer-entiteit (optioneel)",
           "notification_device_ids": "Meldingsapparaten (optioneel)",
+          "notification_language": "Meldingstaal",
           "notifications_enabled": "Meldingen ingeschakeld",
           "quiet_hours_enabled": "Nachtmodus ingeschakeld",
           "quiet_hours_start": "Nachtmodus start",

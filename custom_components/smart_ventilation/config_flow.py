@@ -21,6 +21,7 @@ from .const import (
     CONF_INDOOR_TEMP,
     CONF_NOTIFICATION_COOLDOWN_MINUTES,
     CONF_NOTIFICATION_DEVICE_IDS,
+    CONF_NOTIFICATION_LANGUAGE,
     CONF_NOTIFICATIONS_ENABLED,
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
@@ -46,6 +47,7 @@ from .const import (
     DOMAIN,
     SEASON_BIAS_OPTIONS,
 )
+from .notification_text import NOTIFICATION_LANGUAGE_OPTIONS
 from .runtime import RuntimeStore
 
 
@@ -109,6 +111,11 @@ def _global_settings_schema() -> vol.Schema:
             ),
             vol.Optional(CONF_NOTIFICATION_DEVICE_IDS): selector.DeviceSelector(
                 selector.DeviceSelectorConfig(integration="mobile_app", multiple=True),
+            ),
+            vol.Optional(CONF_NOTIFICATION_LANGUAGE): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=NOTIFICATION_LANGUAGE_OPTIONS, mode=selector.SelectSelectorMode.DROPDOWN,
+                ),
             ),
             vol.Optional(CONF_NOTIFICATIONS_ENABLED): selector.BooleanSelector(),
             vol.Optional(CONF_QUIET_HOURS_ENABLED): selector.BooleanSelector(),
@@ -229,48 +236,26 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
-        """Show area management menu, or go straight to add if no areas exist."""
+        """Show the top-level menu: manage areas, or global settings."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["areas", "global_settings"],
+        )
+
+    async def async_step_areas(
+        self, user_input: dict | None = None
+    ) -> ConfigFlowResult:
+        """Show the area-management menu, or go straight to add on first use."""
         if not self._get_areas():
             return await self.async_step_add_area()
 
-        return self.async_show_form(
-            step_id="menu",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("action", default="add"): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=[
-                                selector.SelectOptionDict(value="add", label="Add Area"),
-                                selector.SelectOptionDict(value="edit", label="Edit Area"),
-                                selector.SelectOptionDict(
-                                    value="remove", label="Remove Area"
-                                ),
-                                selector.SelectOptionDict(
-                                    value="global_settings", label="Global Settings"
-                                ),
-                            ],
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                }
-            ),
+        return self.async_show_menu(
+            step_id="areas",
+            # "edit_area_select", not "edit_area" — a menu option routes
+            # directly to async_step_<value>(), and editing needs the
+            # area-selection step first, not the edit form itself.
+            menu_options=["add_area", "edit_area_select", "remove_area"],
         )
-
-    async def async_step_menu(
-        self, user_input: dict | None = None
-    ) -> ConfigFlowResult:
-        """Route menu selection to add, edit, remove, or global settings."""
-        if user_input is not None:
-            action = user_input.get("action")
-            if action == "add":
-                return await self.async_step_add_area()
-            if action == "edit":
-                return await self.async_step_edit_area_select()
-            if action == "remove":
-                return await self.async_step_remove_area()
-            if action == "global_settings":
-                return await self.async_step_global_settings()
-        return await self.async_step_init()
 
     async def async_step_global_settings(
         self, user_input: dict | None = None

@@ -29,6 +29,7 @@ from .const import (
     CONF_INDOOR_PM25,
     CONF_INDOOR_TEMP,
     CONF_NOTIFICATION_COOLDOWN_MINUTES,
+    CONF_NOTIFICATION_LANGUAGE,
     CONF_NOTIFICATIONS_ENABLED,
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
@@ -45,6 +46,7 @@ from .const import (
     CONF_WIND_AVG,
     CONF_WIND_MAX,
     DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
+    DEFAULT_NOTIFICATION_LANGUAGE,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
     DEFAULT_SEASON_BIAS,
@@ -54,6 +56,7 @@ from .const import (
 from .debounce import SignalDebouncer
 from .diagnostics_monitor import is_area_misconfigured, sync_notification
 from .notification_rules import build_signature, classify_severity, is_quiet_hours, should_notify
+from .notification_text import build_advisory_message
 from .weather import WeatherSignal, async_get_weather_signal
 
 _LOGGER = logging.getLogger(__name__)
@@ -285,7 +288,11 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         is_override = data["action_override"]
 
         sync_notification(
-            self.hass, self.entry, area_name, is_area_misconfigured(area_config, settings)
+            self.hass,
+            self.entry,
+            area_name,
+            is_area_misconfigured(area_config, settings),
+            settings.get(CONF_NOTIFICATION_LANGUAGE, DEFAULT_NOTIFICATION_LANGUAGE),
         )
 
         await actuator.async_maybe_actuate(
@@ -319,7 +326,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "last_notified_at": notify_state.get("last_notified_at"),
         }
         reason = data["ventilation_reason"]
-        signature = build_signature(area_name, action, reason)
+        signature = build_signature(area_name, action)
         severity = classify_severity(data["efficiency"])
 
         should_send, new_debouncer = should_notify(
@@ -343,7 +350,9 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "last_notified_at": notify_state.get("last_notified_at"),
         }
         if should_send:
-            message = f"{area_name}: {action} — {reason}"
+            message = build_advisory_message(
+                area_name, action, reason, settings.get(CONF_NOTIFICATION_LANGUAGE, DEFAULT_NOTIFICATION_LANGUAGE)
+            )
             sent = await self.notifier.async_send_advisory(area_name, message, severity)
             if sent:
                 notify_patch.update(
@@ -377,10 +386,11 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         action = data["action"]
         reason = data["ventilation_reason"]
         severity = classify_severity(data["efficiency"])
-        signature = build_signature(area_name, action, reason)
+        signature = build_signature(area_name, action)
         now = dt_util.now()
+        language = self.runtime.settings.get(CONF_NOTIFICATION_LANGUAGE, DEFAULT_NOTIFICATION_LANGUAGE)
 
-        message = f"{area_name}: {action} — {reason}"
+        message = build_advisory_message(area_name, action, reason, language)
         sent = await self.notifier.async_send_advisory(area_name, message, severity)
         if sent:
             notify_state = self.runtime.area_state(area_name)["notify"]

@@ -177,6 +177,13 @@ delivered and the area would silently never act — Smart Ventilation
 raises a persistent Home Assistant notification telling you so, rather
 than failing silently.
 
+**Notification Language** (English/Dutch, under Global Settings) controls
+the language of the push notifications and confirmation requests
+themselves — independent of the language your Home Assistant profile is
+set to. Entity names and states on the dashboard still follow your HA
+profile language as usual; this setting only affects the text actually
+sent to your phone.
+
 ## Room types
 
 The integration reads the area name to determine room type and adjusts the scoring accordingly:

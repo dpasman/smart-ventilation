@@ -16,15 +16,18 @@ COOLDOWN = 60
 
 
 class TestBuildSignature:
-    def test_distinct_areas_actions_reasons_produce_distinct_signatures(self):
-        a = build_signature("Keuken", "OPEN", "Elevated CO2")
-        b = build_signature("Badkamer", "OPEN", "Elevated CO2")
-        c = build_signature("Keuken", "CLOSE", "Elevated CO2")
-        d = build_signature("Keuken", "OPEN", "Good ventilation conditions")
-        assert len({a, b, c, d}) == 4
+    def test_distinct_areas_or_actions_produce_distinct_signatures(self):
+        a = build_signature("Keuken", "OPEN")
+        b = build_signature("Badkamer", "OPEN")
+        c = build_signature("Keuken", "CLOSE")
+        assert len({a, b, c}) == 3
 
     def test_identical_inputs_produce_identical_signatures(self):
-        assert build_signature("Keuken", "OPEN", "Elevated CO2") == build_signature("Keuken", "OPEN", "Elevated CO2")
+        # Also demonstrates the point of dropping reason from the
+        # signature: a reason-text flip alone (not modeled here, since the
+        # parameter no longer exists) can never change the identity of
+        # "this area recommends this action" — only area or action can.
+        assert build_signature("Keuken", "OPEN") == build_signature("Keuken", "OPEN")
 
 
 class TestClassifySeverity:

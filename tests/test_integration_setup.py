@@ -93,10 +93,11 @@ class TestOptionsFlowClobberRegression:
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-        # Step 1: set a global setting via the options flow.
+        # Step 1: set a global setting via the options flow menu
+        # (init -> "global_settings").
         result = await hass.config_entries.options.async_init(entry.entry_id)
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {"action": "global_settings"}
+            result["flow_id"], {"next_step_id": "global_settings"}
         )
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {"debug_mode": True}
@@ -104,10 +105,14 @@ class TestOptionsFlowClobberRegression:
         await hass.async_block_till_done()
         assert entry.options["settings"]["debug_mode"] is True
 
-        # Step 2: edit the area through the options flow.
+        # Step 2: edit the area through the options flow menu
+        # (init -> "areas" -> "edit_area").
         result = await hass.config_entries.options.async_init(entry.entry_id)
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {"action": "edit"}
+            result["flow_id"], {"next_step_id": "areas"}
+        )
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": "edit_area_select"}
         )
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {"area_to_edit": "keuken"}

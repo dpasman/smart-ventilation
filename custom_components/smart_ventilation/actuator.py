@@ -26,15 +26,18 @@ from .const import (
     CONF_ACTION_LOCKOUT_MINUTES,
     CONF_AREA_NAME,
     CONF_CONFIRMATION_REQUIRED,
+    CONF_NOTIFICATION_LANGUAGE,
     CONF_START_ENTITY,
     CONF_STOP_ENTITY,
     CONF_WINDOW_SENSORS,
     DEFAULT_ACTION_HOLD_MINUTES,
     DEFAULT_ACTION_LOCKOUT_MINUTES,
     DEFAULT_CONFIRMATION_REQUIRED,
+    DEFAULT_NOTIFICATION_LANGUAGE,
 )
 from .guard import GuardState, evaluate as guard_evaluate
 from .notification import NotificationManager
+from .notification_text import build_confirmation_message
 from .runtime import RuntimeStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,7 +88,8 @@ async def async_maybe_actuate(
         if confirmed:
             await _async_trigger(hass, automation_entity)
 
-    message = _confirmation_message(area_name, to_execute)
+    language = runtime.settings.get(CONF_NOTIFICATION_LANGUAGE, DEFAULT_NOTIFICATION_LANGUAGE)
+    message = build_confirmation_message(area_name, to_execute, language)
     await notifier.async_send_confirmation_request(area_name, to_execute, message, _on_resolved)
 
 
@@ -116,7 +120,3 @@ async def _async_trigger(hass: HomeAssistant, automation_entity: str) -> None:
         _LOGGER.warning("Smart Ventilation: could not trigger %s", automation_entity, exc_info=True)
 
 
-def _confirmation_message(area_name: str, action: str) -> str:
-    if action == "OPEN":
-        return f"{area_name}: open the window? Smart Ventilation recommends it now."
-    return f"{area_name}: close the window? Smart Ventilation recommends it now."

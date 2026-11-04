@@ -20,8 +20,10 @@ from .const import (
     CONF_START_ENTITY,
     CONF_STOP_ENTITY,
     DEFAULT_CONFIRMATION_REQUIRED,
+    DEFAULT_NOTIFICATION_LANGUAGE,
     DOMAIN,
 )
+from .notification_text import LANGUAGE_NL
 
 CONFIRMATION_UNREACHABLE = "confirmation_unreachable"
 
@@ -40,13 +42,19 @@ def is_area_misconfigured(area_config: dict, settings: dict) -> str | None:
     return None
 
 
-def sync_notification(hass: HomeAssistant, entry: ConfigEntry, area_name: str, reason: str | None) -> None:
+def sync_notification(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    area_name: str,
+    reason: str | None,
+    language: str = DEFAULT_NOTIFICATION_LANGUAGE,
+) -> None:
     """Create or dismiss the persistent notification for one area's diagnostic state."""
     notification_id = _notification_id(entry, area_name)
     if reason is None:
         persistent_notification.async_dismiss(hass, notification_id)
         return
-    title, message = _build_message(area_name, reason)
+    title, message = _build_message(area_name, reason, language)
     persistent_notification.async_create(hass, message, title=title, notification_id=notification_id)
 
 
@@ -54,8 +62,19 @@ def _notification_id(entry: ConfigEntry, area_name: str) -> str:
     return f"{DOMAIN}_{entry.entry_id}_{area_name}_diagnostic"
 
 
-def _build_message(area_name: str, reason: str) -> tuple[str, str]:
+def _build_message(area_name: str, reason: str, language: str) -> tuple[str, str]:
     if reason == CONFIRMATION_UNREACHABLE:
+        if language == LANGUAGE_NL:
+            return (
+                "Smart Ventilation: bevestiging onbereikbaar",
+                (
+                    f"{area_name} heeft een open/dicht-automatisering geconfigureerd en "
+                    "vereist bevestiging voordat die wordt gebruikt, maar er is geen "
+                    "meldingsapparaat ingesteld bij Algemene instellingen — de actie "
+                    "wordt dus nooit daadwerkelijk uitgevoerd. Voeg een meldingsapparaat "
+                    "toe, of zet \"Bevestiging vereist voor actie\" uit voor deze ruimte."
+                ),
+            )
         return (
             "Smart Ventilation: unreachable confirmation",
             (
