@@ -1,6 +1,5 @@
 {
   "config": {
-    "title": "Smart Ventilation",
     "step": {
       "user": {
         "title": "Outdoor Sensors",
@@ -19,7 +18,6 @@
     }
   },
   "options": {
-    "title": "Smart Ventilation",
     "step": {
       "init": {
         "title": "Manage Areas"
@@ -38,7 +36,13 @@
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
           "indoor_co2": "Indoor CO2 (optional)",
-          "indoor_pm25": "Indoor PM2.5 (optional)"
+          "indoor_pm25": "Indoor PM2.5 (optional)",
+          "start_entity_id": "Open Automation (optional)",
+          "stop_entity_id": "Close Automation (optional)",
+          "window_sensor_entity_ids": "Window Sensors (optional)",
+          "action_hold_minutes": "Action Hold (minutes)",
+          "action_lockout_minutes": "Action Lockout (minutes)",
+          "confirmation_required": "Require Confirmation Before Acting"
         }
       },
       "edit_area_select": {
@@ -55,13 +59,36 @@
           "indoor_temperature": "Indoor Temperature",
           "indoor_humidity": "Indoor Humidity",
           "indoor_co2": "Indoor CO2 (optional)",
-          "indoor_pm25": "Indoor PM2.5 (optional)"
+          "indoor_pm25": "Indoor PM2.5 (optional)",
+          "start_entity_id": "Open Automation (optional)",
+          "stop_entity_id": "Close Automation (optional)",
+          "window_sensor_entity_ids": "Window Sensors (optional)",
+          "action_hold_minutes": "Action Hold (minutes)",
+          "action_lockout_minutes": "Action Lockout (minutes)",
+          "confirmation_required": "Require Confirmation Before Acting"
         }
       },
       "remove_area": {
         "title": "Remove Area",
         "data": {
           "area_to_remove": "Select Area to Remove"
+        }
+      },
+      "global_settings": {
+        "title": "Global Settings",
+        "description": "Weather awareness, notifications, and quiet hours — shared across all areas.",
+        "data": {
+          "weather_entity_id": "Weather Entity (optional)",
+          "notification_device_ids": "Notification Devices (optional)",
+          "notifications_enabled": "Notifications Enabled",
+          "quiet_hours_enabled": "Quiet Hours Enabled",
+          "quiet_hours_start": "Quiet Hours Start",
+          "quiet_hours_end": "Quiet Hours End",
+          "notification_cooldown_minutes": "Notification Cooldown (minutes)",
+          "stability_window_minutes": "Notification Stability Window (minutes)",
+          "season_bias": "Season Bias",
+          "diagnostic_notification_level": "Diagnostic Notification Level",
+          "debug_mode": "Debug Mode"
         }
       }
     }
@@ -74,11 +101,11 @@
       "ventilation_advice": {
         "name": "Ventilation Advice",
         "state": {
-          "Optimal": "Optimal",
-          "Recommended": "Recommended",
-          "Decent": "Decent",
-          "Neutral": "Neutral",
-          "Not Recommended": "Not Recommended"
+          "optimal": "Optimal",
+          "recommended": "Recommended",
+          "decent": "Decent",
+          "neutral": "Neutral",
+          "not_recommended": "Not Recommended"
         }
       },
       "humidity_difference": {
@@ -90,30 +117,74 @@
       "air_quality": {
         "name": "Air Quality",
         "state": {
-          "Excellent": "Excellent",
-          "Good": "Good",
-          "Moderate": "Moderate",
-          "Poor": "Poor",
-          "Unhealthy": "Unhealthy"
+          "excellent": "Excellent",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "unhealthy": "Unhealthy"
         }
       },
       "comfort": {
         "name": "Comfort",
         "state": {
-          "Excellent": "Excellent",
-          "Good": "Good",
-          "Moderate": "Moderate",
-          "Poor": "Poor",
-          "Unhealthy": "Unhealthy"
+          "excellent": "Excellent",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "unhealthy": "Unhealthy"
         }
       },
       "ventilation_reason": {
         "name": "Ventilation Reason"
+      },
+      "ventilation_action": {
+        "name": "Ventilation Action",
+        "state": {
+          "open": "Open",
+          "close": "Close",
+          "ventilate": "Ventilate briefly",
+          "none": "No action"
+        }
       }
     },
     "binary_sensor": {
       "cooling_recommended": {
         "name": "Cooling by Ventilation Recommended"
+      }
+    },
+    "number": {
+      "notification_cooldown_minutes": {
+        "name": "Notification Cooldown"
+      },
+      "stability_window_minutes": {
+        "name": "Notification Stability Window"
+      }
+    },
+    "time": {
+      "quiet_hours_start": {
+        "name": "Quiet Hours Start"
+      },
+      "quiet_hours_end": {
+        "name": "Quiet Hours End"
+      }
+    },
+    "switch": {
+      "notifications_enabled": {
+        "name": "Notifications Enabled"
+      },
+      "quiet_hours_enabled": {
+        "name": "Quiet Hours Enabled"
+      },
+      "debug_mode": {
+        "name": "Debug Mode"
+      },
+      "confirmation_required": {
+        "name": "Require Confirmation Before Acting"
+      }
+    },
+    "button": {
+      "send_recommendation_now": {
+        "name": "Send Recommendation Now"
       }
     }
   }

@@ -13,8 +13,25 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import AIR_QUALITY_LEVELS, CONF_INDOOR_CO2, CONF_INDOOR_PM25, DOMAIN, VENTILATION_ADVICE_LEVELS
+from .const import (
+    ACTION_LEVELS,
+    AIR_QUALITY_LEVELS,
+    CONF_INDOOR_CO2,
+    CONF_INDOOR_PM25,
+    DOMAIN,
+    VENTILATION_ADVICE_LEVELS,
+)
 from .coordinator import SmartVentilationCoordinator
+from .entity_helpers import device_info as _device_info
+from .entity_helpers import slugify_state
+
+# HA requires device_class: enum state keys to match [a-z0-9-_]+, but the
+# calculator's internal values ("Optimal", "OPEN", ...) stay human-readable
+# Title Case everywhere else (tests, action/guard logic) — slugified only
+# here, at the sensor-entity boundary. See entity_helpers.slugify_state().
+_VENTILATION_ADVICE_OPTIONS = [slugify_state(v) for v in VENTILATION_ADVICE_LEVELS]
+_AIR_QUALITY_OPTIONS = [slugify_state(v) for v in AIR_QUALITY_LEVELS]
+_ACTION_OPTIONS = [slugify_state(v) for v in ACTION_LEVELS]
 
 
 async def async_setup_entry(
@@ -35,20 +52,11 @@ async def async_setup_entry(
             TemperatureDifferenceSensor(coordinator, entry, area_name, area_id),
             ComfortSensor(coordinator, entry, area_name, area_id),
             VentilationReasonSensor(coordinator, entry, area_name, area_id),
+            VentilationActionSensor(coordinator, entry, area_name, area_id),
         ])
         if area.get(CONF_INDOOR_CO2) or area.get(CONF_INDOOR_PM25):
             entities.append(AirQualitySensor(coordinator, entry, area_name, area_id))
     async_add_entities(entities)
-
-
-def _device_info(entry: ConfigEntry, area_name: str, area_id: str | None = None) -> dict:
-    info: dict = {
-        "identifiers": {(DOMAIN, f"{entry.entry_id}_{area_name}")},
-        "name": area_name,
-        "manufacturer": "Smart Ventilation",
-        "suggested_area": area_name,
-    }
-    return info
 
 
 class _AreaSensor(CoordinatorEntity[SmartVentilationCoordinator], SensorEntity):
@@ -119,7 +127,7 @@ class VentilationAdviceSensor(_AreaSensor):
     """Ventilation advice as an ENUM string."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = VENTILATION_ADVICE_LEVELS
+    _attr_options = _VENTILATION_ADVICE_OPTIONS
     _attr_translation_key = "ventilation_advice"
 
     def __init__(
@@ -133,7 +141,7 @@ class VentilationAdviceSensor(_AreaSensor):
         self._attr_unique_id = f"{entry.entry_id}_{area_name}_advice"
 
     def _update_from_data(self, data: dict) -> None:
-        self._attr_native_value = data.get("advice", "Not Recommended")
+        self._attr_native_value = slugify_state(data.get("advice", "Not Recommended"))
 
 
 class HumidityDifferenceSensor(_AreaSensor):
@@ -184,7 +192,7 @@ class AirQualitySensor(_AreaSensor):
     """Indoor air quality based on CO2 and PM2.5 only."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = AIR_QUALITY_LEVELS
+    _attr_options = _AIR_QUALITY_OPTIONS
     _attr_translation_key = "air_quality"
 
     def __init__(
@@ -200,16 +208,16 @@ class AirQualitySensor(_AreaSensor):
     @property
     def icon(self) -> str:
         value = self._attr_native_value
-        if value == "Excellent":
+        if value == "excellent":
             return "mdi:air-filter"
-        if value == "Good":
+        if value == "good":
             return "mdi:air-purifier"
-        if value == "Moderate":
+        if value == "moderate":
             return "mdi:cloud-alert"
         return "mdi:biohazard"
 
     def _update_from_data(self, data: dict) -> None:
-        self._attr_native_value = data.get("air_quality", "Good")
+        self._attr_native_value = slugify_state(data.get("air_quality", "Good"))
         attrs = data.get("air_quality_attributes", {})
         self._attr_extra_state_attributes = {
             "co2_category": attrs.get("co2_category"),
@@ -222,7 +230,7 @@ class ComfortSensor(_AreaSensor):
     """Indoor comfort level based on temperature and humidity."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = AIR_QUALITY_LEVELS
+    _attr_options = _AIR_QUALITY_OPTIONS
     _attr_translation_key = "comfort"
 
     def __init__(
@@ -238,16 +246,16 @@ class ComfortSensor(_AreaSensor):
     @property
     def icon(self) -> str:
         value = self._attr_native_value
-        if value == "Excellent":
+        if value == "excellent":
             return "mdi:home-thermometer"
-        if value == "Good":
+        if value == "good":
             return "mdi:thermometer"
-        if value == "Moderate":
+        if value == "moderate":
             return "mdi:thermometer-alert"
         return "mdi:thermometer-high"
 
     def _update_from_data(self, data: dict) -> None:
-        self._attr_native_value = data.get("comfort", "Good")
+        self._attr_native_value = slugify_state(data.get("comfort", "Good"))
         attrs = data.get("comfort_attributes", {})
         self._attr_extra_state_attributes = {
             "temperature_category": attrs.get("temperature_category"),
@@ -274,3 +282,44 @@ class VentilationReasonSensor(_AreaSensor):
 
     def _update_from_data(self, data: dict) -> None:
         self._attr_native_value = data.get("ventilation_reason", "Good air quality")
+
+
+class VentilationActionSensor(_AreaSensor):
+    """Derived action: OPEN / CLOSE / VENTILATE / NONE.
+
+    Additive to the existing efficiency/advice sensors above, not a
+    replacement — this is the signal any actuation (see actuator.py) and
+    the companion-app confirmation flow act on.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = _ACTION_OPTIONS
+    _attr_translation_key = "ventilation_action"
+
+    def __init__(
+        self,
+        coordinator: SmartVentilationCoordinator,
+        entry: ConfigEntry,
+        area_name: str,
+        area_id: str | None = None,
+    ) -> None:
+        super().__init__(coordinator, entry, area_name, area_id)
+        self._attr_unique_id = f"{entry.entry_id}_{area_name}_action"
+
+    @property
+    def icon(self) -> str:
+        value = self._attr_native_value
+        if value == "open":
+            return "mdi:window-open-variant"
+        if value == "close":
+            return "mdi:window-closed-variant"
+        if value == "ventilate":
+            return "mdi:window-shutter-alert"
+        return "mdi:window-shutter"
+
+    def _update_from_data(self, data: dict) -> None:
+        self._attr_native_value = slugify_state(data.get("action", "NONE"))
+        self._attr_extra_state_attributes = {
+            "override": data.get("action_override", False),
+            "weather_condition": data.get("weather_condition"),
+        }

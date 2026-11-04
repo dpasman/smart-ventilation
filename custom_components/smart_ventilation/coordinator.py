@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import deque
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
+from . import actuator
+from .action import derive_action
 from .calculator import (
     VentilationCalculator,
     calculate_absolute_humidity,
@@ -24,18 +28,37 @@ from .const import (
     CONF_INDOOR_HUMIDITY,
     CONF_INDOOR_PM25,
     CONF_INDOOR_TEMP,
+    CONF_NOTIFICATION_COOLDOWN_MINUTES,
+    CONF_NOTIFICATIONS_ENABLED,
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
     CONF_OUTDOOR_HUMIDITY,
     CONF_OUTDOOR_PM25,
     CONF_OUTDOOR_TEMP,
     CONF_OUTDOOR_TEMP_MAX_24H,
+    CONF_QUIET_HOURS_ENABLED,
+    CONF_QUIET_HOURS_END,
+    CONF_QUIET_HOURS_START,
+    CONF_SEASON_BIAS,
+    CONF_STABILITY_WINDOW_MINUTES,
+    CONF_WEATHER_ENTITY,
     CONF_WIND_AVG,
     CONF_WIND_MAX,
+    DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
+    DEFAULT_QUIET_HOURS_END,
+    DEFAULT_QUIET_HOURS_START,
+    DEFAULT_SEASON_BIAS,
+    DEFAULT_STABILITY_WINDOW_MINUTES,
     DOMAIN,
 )
+from .debounce import SignalDebouncer
+from .diagnostics_monitor import is_area_misconfigured, sync_notification
+from .notification_rules import build_signature, classify_severity, is_quiet_hours, should_notify
+from .weather import WeatherSignal, async_get_weather_signal
 
 _LOGGER = logging.getLogger(__name__)
+
+_AREA_EFFECTS_TIMEOUT_SECONDS = 10
 
 
 class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -51,15 +74,41 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         )
         self.entry = entry
         self._efficiency_history: dict[str, deque[float]] = {}
+        # Set by __init__.py's async_setup_entry before the first refresh —
+        # declared here only so attribute access below type-checks cleanly.
+        self.runtime = None
+        self.notifier = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch sensor states and calculate data for all configured areas."""
         outdoor = self._get_outdoor_data()
+        settings = self.runtime.settings
+        weather_signal = await async_get_weather_signal(
+            self.hass, settings.get(CONF_WEATHER_ENTITY)
+        )
         areas = self.entry.options.get("areas") or self.entry.data.get("areas", [])
-        return {
-            area[CONF_AREA_NAME]: self._get_area_data(area, outdoor)
+        now = dt_util.now()
+        data = {
+            area[CONF_AREA_NAME]: self._get_area_data(area, outdoor, weather_signal, settings, now)
             for area in areas
         }
+
+        for area in areas:
+            area_name = area[CONF_AREA_NAME]
+            try:
+                await asyncio.wait_for(
+                    self._async_handle_area_effects(area, data[area_name], settings, now),
+                    timeout=_AREA_EFFECTS_TIMEOUT_SECONDS,
+                )
+            except Exception:  # noqa: BLE001
+                # A broken automation entity or a slow/failing notify call
+                # must never take down sensor data for every other area.
+                _LOGGER.warning(
+                    "Smart Ventilation: actuation/notification handling failed for %s",
+                    area_name, exc_info=True,
+                )
+
+        return data
 
     def _read_state(self, entity_id: str | None) -> float | None:
         """Return the numeric state of an entity, or None if missing/unavailable."""
@@ -120,7 +169,12 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         }
 
     def _get_area_data(
-        self, area_config: dict, outdoor: dict[str, float | None]
+        self,
+        area_config: dict,
+        outdoor: dict[str, float | None],
+        weather_signal: WeatherSignal | None,
+        settings: dict[str, Any],
+        now,
     ) -> dict[str, Any]:
         """Read area sensor states, run calculator, return result dict."""
         in_temp = self._read_state(area_config.get(CONF_INDOOR_TEMP))
@@ -152,6 +206,8 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             wind_max=outdoor["wind_max"],
             out_rh=outdoor["outdoor_humidity"],
             room_type=self._detect_room_type(area_config[CONF_AREA_NAME]),
+            weather_block=weather_signal.block if weather_signal else False,
+            weather_caution=weather_signal.caution if weather_signal else False,
         )
 
         efficiency = self._smooth_efficiency(
@@ -161,6 +217,12 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         air_quality_result = calc.get_air_quality()
         comfort_result = calc.get_comfort()
         ventilation_reason = calc.get_ventilation_reason()
+        action, action_override = derive_action(
+            efficiency,
+            calc.get_action_signals(),
+            settings.get(CONF_SEASON_BIAS, DEFAULT_SEASON_BIAS),
+            now=now,
+        )
 
         cooling_recommended = (
             in_temp is not None
@@ -202,7 +264,142 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
                 "worst_parameter": comfort_result["worst_parameter"],
             },
             "ventilation_reason": ventilation_reason,
+            "action": action,
+            "action_override": action_override,
+            "weather_condition": weather_signal.condition if weather_signal else None,
         }
+
+    async def _async_handle_area_effects(
+        self, area_config: dict, data: dict[str, Any], settings: dict[str, Any], now
+    ) -> None:
+        """Actuate and/or notify for one area, based on this tick's data.
+
+        Actuation (via actuator.py) always runs regardless of notification
+        settings — it's a physical/safety concern, not a notification-
+        preference concern. Notifications are gated separately by
+        notifications_enabled and quiet hours (an override still bypasses
+        quiet hours, same as it bypasses the actuation hold/lockout).
+        """
+        area_name = area_config[CONF_AREA_NAME]
+        action = data["action"]
+        is_override = data["action_override"]
+
+        sync_notification(
+            self.hass, self.entry, area_name, is_area_misconfigured(area_config, settings)
+        )
+
+        await actuator.async_maybe_actuate(
+            self.hass, area_config, self.runtime, self.notifier, action, is_override, now
+        )
+
+        if action == "NONE" and not is_override:
+            return
+        if not settings.get(CONF_NOTIFICATIONS_ENABLED, True):
+            return
+
+        quiet_hours_active = settings.get(
+            CONF_QUIET_HOURS_ENABLED, True
+        ) and is_quiet_hours(
+            now.time(),
+            _parse_time(settings.get(CONF_QUIET_HOURS_START), DEFAULT_QUIET_HOURS_START),
+            _parse_time(settings.get(CONF_QUIET_HOURS_END), DEFAULT_QUIET_HOURS_END),
+        )
+        if quiet_hours_active and not is_override:
+            return
+
+        notify_state = self.runtime.area_state(area_name)["notify"]
+        debouncer = SignalDebouncer(
+            pending_value=notify_state.get("pending_signature"),
+            pending_since=_parse_dt(notify_state.get("pending_since")),
+            stable_value=notify_state.get("stable_signature"),
+        )
+        marker = {
+            "last_signature": notify_state.get("last_signature"),
+            "last_severity": notify_state.get("last_severity"),
+            "last_notified_at": notify_state.get("last_notified_at"),
+        }
+        reason = data["ventilation_reason"]
+        signature = build_signature(area_name, action, reason)
+        severity = classify_severity(data["efficiency"])
+
+        should_send, new_debouncer = should_notify(
+            marker,
+            signature,
+            severity,
+            now,
+            settings.get(CONF_NOTIFICATION_COOLDOWN_MINUTES, DEFAULT_NOTIFICATION_COOLDOWN_MINUTES),
+            debouncer,
+            settings.get(CONF_STABILITY_WINDOW_MINUTES, DEFAULT_STABILITY_WINDOW_MINUTES),
+            override=is_override,
+        )
+
+        notify_patch = {
+            "pending_signature": new_debouncer.pending_value,
+            "pending_since": new_debouncer.pending_since.isoformat() if new_debouncer.pending_since else None,
+            "stable_signature": new_debouncer.stable_value,
+            "last_signature": notify_state.get("last_signature"),
+            "last_reason": notify_state.get("last_reason"),
+            "last_severity": notify_state.get("last_severity"),
+            "last_notified_at": notify_state.get("last_notified_at"),
+        }
+        if should_send:
+            message = f"{area_name}: {action} — {reason}"
+            sent = await self.notifier.async_send_advisory(area_name, message, severity)
+            if sent:
+                notify_patch.update(
+                    last_signature=signature,
+                    last_reason=reason,
+                    last_severity=severity,
+                    last_notified_at=now.isoformat(),
+                )
+
+        if notify_patch != notify_state:
+            self.runtime.save_area_state(area_name, {"notify": notify_patch})
+
+    async def async_send_recommendation_now(self, area_name: str) -> None:
+        """Send the current recommendation for one area immediately.
+
+        Bypasses the notification stability window, cooldown, and quiet
+        hours — an explicit user action, not an ambient one. Still runs
+        actuation through the normal actuator.async_maybe_actuate() path
+        (hold/lockout and confirmation-required both still apply there;
+        this button is a notification-noise bypass, not a safety bypass).
+        """
+        await self.async_request_refresh()
+        data = (self.data or {}).get(area_name)
+        if data is None:
+            return
+        areas = self.entry.options.get("areas") or self.entry.data.get("areas", [])
+        area_config = next((a for a in areas if a[CONF_AREA_NAME] == area_name), None)
+        if area_config is None:
+            return
+
+        action = data["action"]
+        reason = data["ventilation_reason"]
+        severity = classify_severity(data["efficiency"])
+        signature = build_signature(area_name, action, reason)
+        now = dt_util.now()
+
+        message = f"{area_name}: {action} — {reason}"
+        sent = await self.notifier.async_send_advisory(area_name, message, severity)
+        if sent:
+            notify_state = self.runtime.area_state(area_name)["notify"]
+            self.runtime.save_area_state(
+                area_name,
+                {
+                    "notify": {
+                        **notify_state,
+                        "last_signature": signature,
+                        "last_reason": reason,
+                        "last_severity": severity,
+                        "last_notified_at": now.isoformat(),
+                    }
+                },
+            )
+
+        await actuator.async_maybe_actuate(
+            self.hass, area_config, self.runtime, self.notifier, action, data["action_override"], now
+        )
 
     def _smooth_efficiency(self, area_name: str, raw: float) -> float:
         """3-reading rolling average to dampen sensor noise."""
@@ -222,3 +419,15 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         if any(k in name for k in ("attic", "zolder")):
             return "attic"
         return "generic"
+
+
+def _parse_dt(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
+
+
+def _parse_time(value: str | None, default: str) -> time:
+    parts = (value or default).split(":")
+    if len(parts) == 2:
+        parts.append("00")
+    hour, minute, second = (int(p) for p in parts[:3])
+    return time(hour, minute, second)

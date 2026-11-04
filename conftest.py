@@ -1,7 +1,26 @@
-"""Pytest configuration: stub out homeassistant so calculator tests run without HA installed."""
+"""Pytest configuration: stub out homeassistant so pure-python unit tests
+run without a real Home Assistant install.
+
+Only activates when the real `homeassistant` package genuinely isn't
+importable. When it IS installed (as it is whenever
+pytest-homeassistant-custom-component is — see requirements_test.txt,
+used by tests/integration/), skipping the stub entirely avoids a nasty
+failure mode: pytest-homeassistant-custom-component's plugin imports real
+homeassistant submodules lazily/on demand, not all up front, so forcing a
+*specific* submodule to resolve to a fake stub (even though the real
+package is present) produces mixed real+fake class hierarchies with
+unresolvable MRO/metaclass errors — worse than either being consistently
+real or consistently fake.
+"""
 
 import sys
 import types
+
+try:
+    import homeassistant  # noqa: F401
+    _REAL_HOMEASSISTANT_AVAILABLE = True
+except ImportError:
+    _REAL_HOMEASSISTANT_AVAILABLE = False
 
 
 class _StubGeneric:
@@ -57,15 +76,28 @@ def _stub(dotted: str) -> _Stub:
     return sys.modules[dotted]  # type: ignore[return-value]
 
 
-# Stub every homeassistant subpath that the package imports
-_stub("homeassistant")
-_stub("homeassistant.config_entries")
-_stub("homeassistant.core")
-_stub("homeassistant.helpers")
-_stub("homeassistant.helpers.device_registry")
-_stub("homeassistant.helpers.update_coordinator")
-_stub("homeassistant.helpers.entity_platform")
-_stub("homeassistant.helpers.entity")
-_stub("homeassistant.components")
-_stub("homeassistant.components.sensor")
-_stub("homeassistant.const")
+if not _REAL_HOMEASSISTANT_AVAILABLE:
+    # Stub every homeassistant subpath the package imports
+    _stub("homeassistant")
+    _stub("homeassistant.config_entries")
+    _stub("homeassistant.core")
+    _stub("homeassistant.helpers")
+    _stub("homeassistant.helpers.device_registry")
+    _stub("homeassistant.helpers.update_coordinator")
+    _stub("homeassistant.helpers.entity_platform")
+    _stub("homeassistant.helpers.entity")
+    _stub("homeassistant.components")
+    _stub("homeassistant.components.sensor")
+    _stub("homeassistant.components.binary_sensor")
+    _stub("homeassistant.components.number")
+    _stub("homeassistant.components.time")
+    _stub("homeassistant.components.switch")
+    _stub("homeassistant.components.button")
+    _stub("homeassistant.components.persistent_notification")
+    _stub("homeassistant.const")
+    _stub("homeassistant.util")
+    _stub("homeassistant.util.dt")
+    _stub("homeassistant.helpers.event")
+    _stub("homeassistant.helpers.area_registry")
+    _stub("homeassistant.helpers.entity_registry")
+    _stub("homeassistant.helpers.selector")
