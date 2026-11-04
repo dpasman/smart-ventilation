@@ -86,6 +86,7 @@
         "data": {
           "weather_entity_id": "Weer-entiteit (optioneel)",
           "notification_device_ids": "Meldingsapparaten (optioneel)",
+          "notification_language": "Meldingstaal",
           "notifications_enabled": "Meldingen ingeschakeld",
           "quiet_hours_enabled": "Nachtmodus ingeschakeld",
           "quiet_hours_start": "Nachtmodus start",

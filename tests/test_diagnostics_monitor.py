@@ -1,7 +1,10 @@
-"""Tests for diagnostics_monitor.is_area_misconfigured (pure predicate)."""
+"""Tests for diagnostics_monitor: is_area_misconfigured (pure predicate)
+and _build_message's language handling.
+"""
 
 from custom_components.smart_ventilation.diagnostics_monitor import (
     CONFIRMATION_UNREACHABLE,
+    _build_message,
     is_area_misconfigured,
 )
 
@@ -33,3 +36,16 @@ class TestIsAreaMisconfigured:
         area = {"start_entity_id": "automation.open"}
         settings = {"notification_device_ids": []}
         assert is_area_misconfigured(area, settings) == CONFIRMATION_UNREACHABLE
+
+
+class TestBuildMessageLanguage:
+    def test_english_default(self):
+        title, message = _build_message("Keuken", CONFIRMATION_UNREACHABLE, "en")
+        assert "unreachable confirmation" in title
+        assert "Keuken" in message
+
+    def test_dutch(self):
+        title, message = _build_message("Keuken", CONFIRMATION_UNREACHABLE, "nl")
+        assert "bevestiging onbereikbaar" in title
+        assert "Keuken" in message
+        assert "unreachable confirmation" not in title  # sanity: not the English string

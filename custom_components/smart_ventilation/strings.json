@@ -86,6 +86,7 @@
         "data": {
           "weather_entity_id": "Weather Entity (optional)",
           "notification_device_ids": "Notification Devices (optional)",
+          "notification_language": "Notification Language",
           "notifications_enabled": "Notifications Enabled",
           "quiet_hours_enabled": "Quiet Hours Enabled",
           "quiet_hours_start": "Quiet Hours Start",

@@ -22,7 +22,13 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import slugify
 
-from .const import CONF_NOTIFICATION_DEVICE_IDS, CONFIRMATION_TOKEN_TTL_MINUTES
+from .const import (
+    CONF_NOTIFICATION_DEVICE_IDS,
+    CONF_NOTIFICATION_LANGUAGE,
+    CONFIRMATION_TOKEN_TTL_MINUTES,
+    DEFAULT_NOTIFICATION_LANGUAGE,
+)
+from .notification_text import ui_label
 from .runtime import RuntimeStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -94,6 +100,7 @@ class NotificationManager:
         token = secrets.token_hex(8)
         confirm_action = f"{_CONFIRM_PREFIX}{token}"
         dismiss_action = f"{_DISMISS_PREFIX}{token}"
+        language = self.runtime.settings.get(CONF_NOTIFICATION_LANGUAGE, DEFAULT_NOTIFICATION_LANGUAGE)
 
         sent = False
         for service in targets:
@@ -106,8 +113,8 @@ class NotificationManager:
                         "message": message,
                         "data": {
                             "actions": [
-                                {"action": confirm_action, "title": "Confirm"},
-                                {"action": dismiss_action, "title": "Dismiss"},
+                                {"action": confirm_action, "title": ui_label("confirm", language)},
+                                {"action": dismiss_action, "title": ui_label("dismiss", language)},
                             ]
                         },
                     },

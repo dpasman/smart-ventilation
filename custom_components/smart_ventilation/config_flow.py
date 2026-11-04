@@ -21,6 +21,7 @@ from .const import (
     CONF_INDOOR_TEMP,
     CONF_NOTIFICATION_COOLDOWN_MINUTES,
     CONF_NOTIFICATION_DEVICE_IDS,
+    CONF_NOTIFICATION_LANGUAGE,
     CONF_NOTIFICATIONS_ENABLED,
     CONF_OUTDOOR_ABS_HUMIDITY,
     CONF_OUTDOOR_DEW_POINT,
@@ -46,6 +47,7 @@ from .const import (
     DOMAIN,
     SEASON_BIAS_OPTIONS,
 )
+from .notification_text import NOTIFICATION_LANGUAGE_OPTIONS
 from .runtime import RuntimeStore
 
 
@@ -109,6 +111,11 @@ def _global_settings_schema() -> vol.Schema:
             ),
             vol.Optional(CONF_NOTIFICATION_DEVICE_IDS): selector.DeviceSelector(
                 selector.DeviceSelectorConfig(integration="mobile_app", multiple=True),
+            ),
+            vol.Optional(CONF_NOTIFICATION_LANGUAGE): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=NOTIFICATION_LANGUAGE_OPTIONS, mode=selector.SelectSelectorMode.DROPDOWN,
+                ),
             ),
             vol.Optional(CONF_NOTIFICATIONS_ENABLED): selector.BooleanSelector(),
             vol.Optional(CONF_QUIET_HOURS_ENABLED): selector.BooleanSelector(),
