@@ -151,3 +151,29 @@ class TestNotificationGating:
             _area_config(), data, DEFAULT_SETTINGS, DAY + timedelta(minutes=71)
         )
         coordinator.notifier.async_send_advisory.assert_awaited_once()
+
+    async def test_flickering_reason_text_with_unchanged_action_does_not_spam(self):
+        # Regression test for the notification-spam report: a value
+        # hovering near a threshold can flip calculator.get_ventilation_reason()
+        # back and forth (e.g. "Elevated CO2" <-> "High CO2 level") while the
+        # recommended action stays OPEN the whole time. That must never look
+        # like a new recommendation.
+        coordinator = _make_coordinator()
+        reason_a = _data()
+        reason_b = {**reason_a, "ventilation_reason": "High CO2 level"}
+
+        await coordinator._async_handle_area_effects(_area_config(), reason_a, DEFAULT_SETTINGS, DAY)
+        await coordinator._async_handle_area_effects(
+            _area_config(), reason_b, DEFAULT_SETTINGS, DAY + timedelta(minutes=10)
+        )
+        coordinator.notifier.async_send_advisory.assert_awaited_once()
+        coordinator.notifier.async_send_advisory.reset_mock()
+
+        # Reason flips again, still within cooldown, action still unchanged.
+        await coordinator._async_handle_area_effects(
+            _area_config(), reason_a, DEFAULT_SETTINGS, DAY + timedelta(minutes=20)
+        )
+        await coordinator._async_handle_area_effects(
+            _area_config(), reason_b, DEFAULT_SETTINGS, DAY + timedelta(minutes=30)
+        )
+        coordinator.notifier.async_send_advisory.assert_not_called()

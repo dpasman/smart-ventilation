@@ -1,8 +1,14 @@
 """Pure notification dedup/gating rules — no HA imports.
 
 - build_signature(): a stable identity for "this area currently recommends
-  this action for this reason", used to tell a genuinely new recommendation
-  apart from a repeat of the one already notified about.
+  this action", used to tell a genuinely new recommendation apart from a
+  repeat of the one already notified about. Deliberately area+action only,
+  NOT the free-text reason: the calculator's get_ventilation_reason() can
+  flip between several near-equivalent reason strings (e.g. "Elevated
+  CO2" <-> "High CO2 level" as a value hovers near a threshold) without
+  the actual recommended action changing at all — including reason in the
+  signature made every such flip look like a brand-new recommendation and
+  bypass the cooldown, which was the direct cause of notification spam.
 - is_quiet_hours(): a standalone time-of-day gate, evaluated separately from
   should_notify() so a safety-critical override can still bypass quiet
   hours at the call site without this module needing to know about it.
@@ -26,9 +32,13 @@ _URGENT_SCORE_THRESHOLD = 75
 _ELEVATED_SCORE_THRESHOLD = 55
 
 
-def build_signature(area_name: str, action: str, reason: str) -> str:
-    """Return a stable identity for one area's current recommendation."""
-    return f"{area_name}|{action}|{reason}"
+def build_signature(area_name: str, action: str) -> str:
+    """Return a stable identity for one area's current recommended action.
+
+    Area+action only — see the module docstring for why the reason text
+    is deliberately excluded.
+    """
+    return f"{area_name}|{action}"
 
 
 def classify_severity(score_0_to_100: float) -> str:

@@ -319,7 +319,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
             "last_notified_at": notify_state.get("last_notified_at"),
         }
         reason = data["ventilation_reason"]
-        signature = build_signature(area_name, action, reason)
+        signature = build_signature(area_name, action)
         severity = classify_severity(data["efficiency"])
 
         should_send, new_debouncer = should_notify(
@@ -377,7 +377,7 @@ class SmartVentilationCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]
         action = data["action"]
         reason = data["ventilation_reason"]
         severity = classify_severity(data["efficiency"])
-        signature = build_signature(area_name, action, reason)
+        signature = build_signature(area_name, action)
         now = dt_util.now()
 
         message = f"{area_name}: {action} — {reason}"
